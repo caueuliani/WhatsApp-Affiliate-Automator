@@ -6,3 +6,5 @@ coverage/
 *.log
 .env*
 !.env.example
+.wa-auth/
+baileys_auth_info_*/
