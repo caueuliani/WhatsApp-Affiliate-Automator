@@ -8,10 +8,13 @@ import QRCode from "qrcode";
 import pino from "pino";
 import { initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
+import firebaseConfig from "./firebase-applet-config.json";
 import { authorizedEmails, checkSendThrottle, isAuthorized, validateOffer } from "./src/server/validation";
 
-const projectId = process.env.FIREBASE_PROJECT_ID;
-if (!projectId) throw new Error("FIREBASE_PROJECT_ID deve ser configurado.");
+const projectId = process.env.FIREBASE_PROJECT_ID || firebaseConfig.projectId;
+if (projectId !== firebaseConfig.projectId) {
+  throw new Error("FIREBASE_PROJECT_ID difere do projectId do aplicativo Web. Confira as configurações antes de iniciar.");
+}
 initializeApp({ projectId });
 const firebaseAuth = getAuth();
 const allowed = authorizedEmails(process.env.AUTHORIZED_EMAILS);

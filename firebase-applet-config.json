@@ -1,12 +1,9 @@
 {
-  "projectId": "gen-lang-client-0126630129",
-  "appId": "1:440790631001:web:5a7473a05e30e39e776748",
-  "apiKey": "AIzaSyB_z6XXzvxD5JB11QcJci8tNW8d2hiH_H4",
-  "authDomain": "gen-lang-client-0126630129.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-whatsappaffiliat-a485c61f-1427-4cf4-acdf-7a5e74dd052f",
-  "storageBucket": "gen-lang-client-0126630129.firebasestorage.app",
-  "messagingSenderId": "440790631001",
-  "measurementId": "",
-  "oAuthClientId": "440790631001-q3318acnmtrk1574mkfvom7gtvsj428d.apps.googleusercontent.com",
-  "recaptchaSiteKey": ""
+  "apiKey": "AIzaSyCKZkYfUsukWG65c-dPtmywVT0wrRWXNeg",
+  "authDomain": "affiliate-operator.firebaseapp.com",
+  "projectId": "affiliate-operator",
+  "storageBucket": "affiliate-operator.firebasestorage.app",
+  "messagingSenderId": "405747037844",
+  "appId": "1:405747037844:web:fb4bbd15a24b454a326681",
+  "measurementId": "G-Y44E713RB4"
 }
