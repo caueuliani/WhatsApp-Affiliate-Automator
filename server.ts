@@ -1,287 +1,192 @@
+import "dotenv/config";
 import express from "express";
-import path from "path";
+import path from "node:path";
+import { mkdir } from "node:fs/promises";
 import { createServer as createViteServer } from "vite";
 import { makeWASocket, useMultiFileAuthState, DisconnectReason } from "@whiskeysockets/baileys";
 import QRCode from "qrcode";
 import pino from "pino";
 import { initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
+import { authorizedEmails, checkSendThrottle, isAuthorized, validateOffer } from "./src/server/validation";
 
-// Initialize Firebase Admin for Token Verification
-initializeApp({ projectId: process.env.FIREBASE_PROJECT_ID || "gen-lang-client-0126630129" });
+const projectId = process.env.FIREBASE_PROJECT_ID;
+if (!projectId) throw new Error("FIREBASE_PROJECT_ID deve ser configurado.");
+initializeApp({ projectId });
+const firebaseAuth = getAuth();
+const allowed = authorizedEmails(process.env.AUTHORIZED_EMAILS);
+if (!allowed.size) console.warn("AUTHORIZED_EMAILS vazio: acesso ao sistema bloqueado.");
 
-const adminAuth = getAuth();
-const PROJECT_ID = process.env.FIREBASE_PROJECT_ID || "gen-lang-client-0126630129";
-const DATABASE_ID = "ai-studio-whatsappaffiliat-a485c61f-1427-4cf4-acdf-7a5e74dd052f";
-
-// --- SAAS STATE MANAGEMENT ---
+const PORT = Number(process.env.PORT || 3000);
+const AUTH_DIR = path.resolve(process.env.WHATSAPP_AUTH_DIR || "./.wa-auth");
 const sessions = new Map<string, ReturnType<typeof makeWASocket>>();
-const currentQrs = new Map<string, string>();
-const isConnectedMap = new Map<string, boolean>();
+const qrs = new Map<string, string>();
+const connected = new Set<string>();
+const connecting = new Set<string>();
+const reconnectTimers = new Map<string, ReturnType<typeof setTimeout>>();
+const busy = new Set<string>();
+const sendHistory = new Map<string, number[]>();
 
-type BulkJobStatus = "running" | "completed" | "error";
-interface BulkJob {
-  id: string;
-  userId: string;
-  total: number;
-  current: number;
-  status: BulkJobStatus;
-  logs: string[];
-}
-const bulkJobs = new Map<string, BulkJob>();
+type OperatorRequest = express.Request & { operator?: { uid: string; email: string } };
 
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-const randomDelay = (min: number, max: number) => sleep(Math.floor(Math.random() * (max - min + 1) + min) * 1000);
-
-async function connectToWhatsApp(userId: string) {
-  if (sessions.has(userId)) return;
-
-  const { state, saveCreds } = await useMultiFileAuthState(`baileys_auth_info_${userId}`);
-
-  const sock = makeWASocket({
-    auth: state,
-    printQRInTerminal: false,
-    logger: pino({ level: "silent" }) as any,
-    browser: ["WhatsApp SaaS", "Chrome", "1.0.0"],
-  });
-
-  sessions.set(userId, sock);
-
-  sock.ev.on("connection.update", async (update) => {
-    const { connection, lastDisconnect, qr } = update;
-
-    if (qr) {
-      const qrBase64 = await QRCode.toDataURL(qr);
-      currentQrs.set(userId, qrBase64);
-      isConnectedMap.set(userId, false);
-    }
-
-    if (connection === "close") {
-      const shouldReconnect =
-        (lastDisconnect?.error as any)?.output?.statusCode !==
-        DisconnectReason.loggedOut;
-      
-      isConnectedMap.set(userId, false);
-      sessions.delete(userId);
-      currentQrs.delete(userId);
-      
-      if (shouldReconnect) {
-        setTimeout(() => connectToWhatsApp(userId), 2000);
-      } else {
-        console.log(`User ${userId} logged out. Credentials invalid.`);
+async function connectWhatsApp(uid: string): Promise<void> {
+  if (sessions.has(uid) || connecting.has(uid)) return;
+  connecting.add(uid);
+  try {
+    await mkdir(path.join(AUTH_DIR, uid), { recursive: true, mode: 0o700 });
+    const { state, saveCreds } = await useMultiFileAuthState(path.join(AUTH_DIR, uid));
+    const sock = makeWASocket({
+      auth: state,
+      printQRInTerminal: false,
+      logger: pino({ level: "warn" }) as any,
+      browser: ["Affiliate Operator", "Chrome", "1.0"],
+    });
+    sessions.set(uid, sock);
+    sock.ev.on("creds.update", saveCreds);
+    sock.ev.on("connection.update", async update => {
+      if (update.qr) {
+        try { qrs.set(uid, await QRCode.toDataURL(update.qr)); } catch { qrs.delete(uid); }
       }
-    } else if (connection === "open") {
-      console.log(`User ${userId} connected to WhatsApp`);
-      isConnectedMap.set(userId, true);
-      currentQrs.delete(userId);
-    }
-  });
-
-  sock.ev.on("creds.update", saveCreds);
-}
-
-async function runBulkJob(jobId: string, userId: string, numbers: string[], finalMessage: string) {
-  const job = bulkJobs.get(jobId);
-  const sock = sessions.get(userId);
-  if (!job || !sock) return;
-
-  for (let i = 0; i < numbers.length; i++) {
-    if (!isConnectedMap.get(userId)) {
-      job.status = "error";
-      job.logs.push("❌ Erro: WhatsApp desconectado durante o envio.");
-      break;
-    }
-
-    const rawNumber = numbers[i].replace(/\D/g, "");
-    if (!rawNumber) {
-      job.current = i + 1;
-      job.logs.push(`⚠️ Ignorado: Número inválido (linha ${i + 1})`);
-      continue;
-    }
-
-    const jid = `${rawNumber}@s.whatsapp.net`;
-
-    try {
-      await sock.sendMessage(jid, { text: finalMessage });
-      job.logs.push(`✅ Enviado para ${rawNumber}`);
-    } catch (error) {
-      job.logs.push(`❌ Erro ao enviar para ${rawNumber}`);
-    }
-
-    job.current = i + 1;
-    if (i < numbers.length - 1) await randomDelay(5, 15);
-  }
-
-  if (job.status !== "error") {
-    job.status = "completed";
-    job.logs.push("🎉 Finalizado!");
-  }
-}
-
-async function startServer() {
-  const app = express();
-  const PORT = 3000;
-
-  app.use(express.json());
-
-  // === AUTH & DB MIDDLEWARE ===
-  const authenticateUser = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ error: "Missing or invalid Authorization header" });
-    }
-    
-    const token = authHeader.split('Bearer ')[1];
-    if (token === 'anti-sleep-ping') return next(); // Bypass for internal ping
-
-    try {
-      const decodedToken = await adminAuth.verifyIdToken(token);
-      
-      const adminEmail = process.env.ADMIN_EMAIL || "caueuliani@gmail.com";
-      const isAdmin = decodedToken.email?.toLowerCase() === adminEmail.toLowerCase();
-
-      // Fetch user document via Firestore REST API using the user's own token
-      const url = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/${DATABASE_ID}/documents/users/${decodedToken.uid}`;
-      const docRes = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-      
-      let status = "inactive";
-      let trialEndsAt = null;
-
-      if (docRes.ok) {
-        const data = await docRes.json();
-        if (data.fields) {
-          status = data.fields.status?.stringValue || "inactive";
-          trialEndsAt = data.fields.trialEndsAt?.integerValue ? parseInt(data.fields.trialEndsAt.integerValue) : null;
+      if (update.connection === "open") {
+        connected.add(uid);
+        qrs.delete(uid);
+      } else if (update.connection === "close") {
+        const loggedOut = (update.lastDisconnect?.error as any)?.output?.statusCode === DisconnectReason.loggedOut;
+        if (sessions.get(uid) !== sock) return;
+        sessions.delete(uid);
+        connected.delete(uid);
+        qrs.delete(uid);
+        if (!loggedOut && !reconnectTimers.has(uid)) {
+          const timer = setTimeout(() => {
+            reconnectTimers.delete(uid);
+            void connectWhatsApp(uid).catch(error => console.error("Reconexão falhou:", error));
+          }, 5000);
+          reconnectTimers.set(uid, timer);
         }
       }
+    });
+  } finally {
+    connecting.delete(uid);
+  }
+}
 
-      (req as any).user = { 
-        ...decodedToken, 
-        status,
-        trialEndsAt,
-        isAdmin 
-      };
+async function main(): Promise<void> {
+  const app = express();
+  app.disable("x-powered-by");
+  app.use(express.json({ limit: "16kb" }));
+
+  const requireOperator: express.RequestHandler = async (req, res, next) => {
+    const bearer = req.headers.authorization;
+    if (!bearer || !bearer.startsWith("Bearer ")) {
+      res.status(401).json({ error: "Faça login para continuar." });
+      return;
+    }
+    try {
+      const user = await firebaseAuth.verifyIdToken(bearer.slice(7));
+      if (!isAuthorized(user.email, user.email_verified, allowed)) {
+        res.status(403).json({ error: "Sua conta não está autorizada a utilizar esta ferramenta." });
+        return;
+      }
+      (req as OperatorRequest).operator = { uid: user.uid, email: user.email! };
       next();
-    } catch (error) {
-      console.error("Auth Error:", error);
-      res.status(401).json({ error: "Unauthorized" });
+    } catch {
+      res.status(401).json({ error: "Sessão inválida ou expirada." });
     }
   };
 
-  const requireSubscription = (req: express.Request, res: express.Response, next: express.NextFunction) => {
-    const user = (req as any).user;
-    if (!user) return next(); // Allow bypass (like the ping)
-    if (user.isAdmin) return next();
-    
-    if (user.status === 'active') return next();
-    if (user.status === 'trial' && user.trialEndsAt && user.trialEndsAt > Date.now()) return next();
-    
-    return res.status(403).json({ error: "Access denied. Subscription required or trial expired." });
-  };
-
-  // WhatsApp Routes
-  app.get("/api/status", authenticateUser, requireSubscription, (req, res) => {
-    const user = (req as any).user;
-    if (!user) return res.json({ connected: false }); // Bypass
-    
-    const userId = user.uid;
-    if (!sessions.has(userId)) {
-      connectToWhatsApp(userId).catch(console.error);
-    }
-    const connected = isConnectedMap.get(userId) || false;
-    res.json({ connected });
+  app.get("/api/health", (_req, res) => res.json({ ok: true }));
+  app.get("/api/me", requireOperator, (req, res) => {
+    res.json({ email: (req as OperatorRequest).operator!.email });
   });
-
-  app.get("/api/qr", authenticateUser, requireSubscription, (req, res) => {
-    const userId = (req as any).user.uid;
-    const connected = isConnectedMap.get(userId) || false;
-    
-    if (connected) return res.status(400).json({ error: "Already connected" });
-    
-    const qr = currentQrs.get(userId);
-    if (!qr) return res.status(404).json({ error: "QR not generated yet or loading" });
-    
+  app.get("/api/status", requireOperator, async (req, res) => {
+    const uid = (req as OperatorRequest).operator!.uid;
+    try {
+      await connectWhatsApp(uid);
+      res.json({ connected: connected.has(uid) });
+    } catch (error) {
+      console.error("Erro de conexão:", error);
+      res.status(503).json({ error: "Não foi possível iniciar a conexão do WhatsApp." });
+    }
+  });
+  app.get("/api/qr", requireOperator, (req, res) => {
+    const uid = (req as OperatorRequest).operator!.uid;
+    if (connected.has(uid)) {
+      res.status(409).json({ error: "WhatsApp já conectado." });
+      return;
+    }
+    const qr = qrs.get(uid);
+    if (!qr) {
+      res.status(404).json({ error: "QR Code ainda não disponível." });
+      return;
+    }
     res.json({ qr });
   });
-
-  app.get("/api/grupos", authenticateUser, requireSubscription, async (req, res) => {
-    const userId = (req as any).user.uid;
-    const sock = sessions.get(userId);
-    const connected = isConnectedMap.get(userId) || false;
-
+  app.get("/api/grupos", requireOperator, async (req, res) => {
+    const uid = (req as OperatorRequest).operator!.uid;
+    const sock = sessions.get(uid);
+    if (!connected.has(uid) || !sock) {
+      res.status(503).json({ error: "WhatsApp desconectado." });
+      return;
+    }
     try {
-      if (!connected || !sock) return res.status(400).json({ error: "WhatsApp não está conectado" });
-      const groupMetaData = await sock.groupFetchAllParticipating();
-      const grupos = Object.values(groupMetaData).map(grupo => ({ id: grupo.id, nome: grupo.subject }));
-      res.json(grupos);
-    } catch (error) {
-      res.status(500).json({ error: "Falha ao buscar a lista de grupos" });
+      const groups = await sock.groupFetchAllParticipating();
+      res.json(Object.values(groups).map(group => ({ id: group.id, nome: group.subject })));
+    } catch {
+      res.status(502).json({ error: "Falha ao buscar os grupos." });
     }
   });
-
-  app.post("/api/share", authenticateUser, requireSubscription, async (req, res) => {
-    const userId = (req as any).user.uid;
-    const { link, grupoId, mensagem } = req.body;
-    const sock = sessions.get(userId);
-    const connected = isConnectedMap.get(userId) || false;
-
-    if (!connected || !sock) return res.status(503).json({ error: "WhatsApp not connected" });
-    if (!grupoId || !mensagem) return res.status(400).json({ error: "Missing required fields" });
-
+  app.post("/api/share", requireOperator, async (req, res) => {
+    const uid = (req as OperatorRequest).operator!.uid;
+    let offer;
     try {
-      const finalMessage = link ? `${mensagem}\n\n${link}` : mensagem;
-      const formattedJid = grupoId.includes("@") ? grupoId : `${grupoId}@g.us`;
-      await sock.sendMessage(formattedJid, { text: finalMessage });
-      res.json({ success: true, message: "Message sent successfully!" });
+      offer = validateOffer(req.body);
     } catch (error) {
-      res.status(500).json({ error: "Failed to send message" });
+      res.status(400).json({ error: error instanceof Error ? error.message : "Oferta inválida." });
+      return;
+    }
+    const sock = sessions.get(uid);
+    if (!connected.has(uid) || !sock) {
+      res.status(503).json({ error: "WhatsApp desconectado." });
+      return;
+    }
+    if (busy.has(uid)) {
+      res.status(429).json({ error: "Aguarde o envio atual terminar." });
+      return;
+    }
+    const now = Date.now();
+    const recent = (sendHistory.get(uid) || []).filter(ts => ts > now - 3600000);
+    const throttle = checkSendThrottle(recent, now);
+    if (!throttle.allowed) {
+      res.set("Retry-After", String(throttle.retryAfterSeconds));
+      res.status(429).json({ error: "Limite de envios manuais atingido. Tente novamente em " + throttle.retryAfterSeconds + " segundos." });
+      return;
+    }
+    busy.add(uid);
+    try {
+      const groups = await sock.groupFetchAllParticipating();
+      if (!Object.prototype.hasOwnProperty.call(groups, offer.grupoId)) {
+        res.status(403).json({ error: "Grupo não encontrado entre os participantes da conta." });
+        return;
+      }
+      sendHistory.set(uid, [...recent, Date.now()]);
+      await sock.sendMessage(offer.grupoId, { text: offer.text });
+      res.json({ accepted: true, message: "Solicitação aceita pelo WhatsApp. A entrega não é garantida." });
+    } catch (error) {
+      console.error("Falha de envio:", error);
+      res.status(502).json({ error: "Falha ao solicitar o envio. Verifique o grupo e a conexão." });
+    } finally {
+      busy.delete(uid);
     }
   });
 
-  app.post("/api/bulk-share", authenticateUser, requireSubscription, (req, res) => {
-    const userId = (req as any).user.uid;
-    const { numbers, link, mensagem } = req.body;
-    const sock = sessions.get(userId);
-    const connected = isConnectedMap.get(userId) || false;
-
-    if (!connected || !sock) return res.status(503).json({ error: "WhatsApp not connected" });
-    if (!numbers || !Array.isArray(numbers) || numbers.length === 0 || !mensagem) {
-      return res.status(400).json({ error: "Missing required fields" });
-    }
-
-    const finalMessage = link ? `${mensagem}\n\n${link}` : mensagem;
-    const jobId = `${userId}_${Date.now()}`;
-    
-    bulkJobs.set(jobId, { id: jobId, userId, total: numbers.length, current: 0, status: "running", logs: ["🚀 Iniciando disparo em lote..."] });
-    runBulkJob(jobId, userId, numbers, finalMessage).catch(console.error);
-    res.json({ jobId });
-  });
-
-  app.get("/api/bulk-status/:jobId", authenticateUser, requireSubscription, (req, res) => {
-    const userId = (req as any).user.uid;
-    const job = bulkJobs.get(req.params.jobId);
-    if (!job || job.userId !== userId) return res.status(404).json({ error: "Job not found or access denied" });
-    res.json(job);
-  });
-
-  setInterval(() => {
-    const appUrl = process.env.APP_URL || `http://localhost:${PORT}`;
-    fetch(`${appUrl}/api/status`, { headers: { 'Authorization': 'Bearer anti-sleep-ping' } }).catch(() => {});
-  }, 10 * 60 * 1000);
-
-  // === VITE MIDDLEWARE ===
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({ server: { middlewareMode: true }, appType: "spa" });
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
-    app.get("*", (req, res) => res.sendFile(path.join(distPath, "index.html")));
+    app.get("*", (_req, res) => res.sendFile(path.join(distPath, "index.html")));
   }
-
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-  });
+  app.listen(PORT, "0.0.0.0", () => console.log("Servidor iniciado na porta " + PORT));
 }
-
-startServer();
+void main().catch(error => { console.error(error); process.exitCode = 1; });
