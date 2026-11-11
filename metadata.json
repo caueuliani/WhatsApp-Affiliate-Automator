@@ -1,0 +1,6 @@
+{
+  "name": "WhatsApp Affiliate Automator",
+  "description": "Sistema de automação de envio de links de afiliados no WhatsApp.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

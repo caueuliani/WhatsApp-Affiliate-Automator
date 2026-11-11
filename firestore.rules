@@ -1,0 +1,16 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAdmin() {
+      // Hardcoded admin email for now
+      return request.auth != null && request.auth.token.email.lower() == 'caueuliani@gmail.com';
+    }
+    
+    match /users/{userId} {
+      allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      allow write: if isAdmin();
+      // Allow users to create their own initial profile if it doesn't exist
+      allow create: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}
