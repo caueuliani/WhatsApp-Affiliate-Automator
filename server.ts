@@ -77,6 +77,11 @@ async function main(): Promise<void> {
   const app = express();
   app.disable("x-powered-by");
   app.use(express.json({ limit: "16kb" }));
+  // Respostas da API podem conter QR Codes e dados do operador.
+  app.use("/api", (_req, res, next) => {
+    res.set("Cache-Control", "no-store");
+    next();
+  });
 
   const requireOperator: express.RequestHandler = async (req, res, next) => {
     const bearer = req.headers.authorization;
