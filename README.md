@@ -28,6 +28,38 @@ Ferramenta **privada** para compartilhar **manualmente** texto e links de oferta
 - O arquivo firebase-applet-config.json contém configuração pública da aplicação Web Firebase. Restrinja o uso da chave e os domínios de autenticação no console, conforme a configuração do seu projeto.
 - Não hospede esse projeto publicamente com env de demonstração ou sem a allowlist configurada.
 
+
+## Deploy de teste no Render (frontend + API)
+
+### Arquitetura
+
+Este projeto **não precisa de Firebase Hosting**: o Express serve o React compilado em `dist/` e as rotas `/api/*` no **mesmo Web Service** do Render. O Firebase **affiliate-operator** fica somente com o Authentication (login Google). Não crie Firestore novo, nem faça deploy no Astra Brain.
+
+### Criar o serviço pelo Blueprint
+
+1. Depois de integrar a PR de deploy na `main`, abra o [Render Dashboard](https://dashboard.render.com/) → **New → Blueprint**, conecte o repositório `caueuliani/WhatsApp-Affiliate-Automator` e use o arquivo `render.yaml` da raiz.
+2. Revise os recursos: **um Web Service, plano Free**. Não selecione plano pago e não adicione bancos/discos.
+3. Preencha `AUTHORIZED_EMAILS` quando o Render solicitar: **e-mail Google real do operador**, já verificado e com acesso autorizado. Para autorizar duas contas, separe os e-mails com vírgula. **Não grave esse e-mail no código ou no GitHub**.
+4. Confirme o Blueprint e inicie o primeiro deploy. O processo compila React + Express e inicia o servidor Node usando o `PORT` fornecido pelo Render; não defina `PORT` manualmente.
+5. Copie a **URL HTTPS exata** do Web Service criada pelo Render (ex.: `https://affiliate-operator-devtecs.onrender.com`, que é apenas um exemplo e pode ganhar sufixo).
+6. No [Firebase Authentication](https://console.firebase.google.com/project/affiliate-operator/authentication), ative Google em **Sign-in method** e adicione **somente o hostname** do Render (sem `https://` e sem `/`) em **Settings → Authorized domains**. Se testar localmente, autorize `localhost`, se ainda não estiver listado.
+7. Acesse a URL do Render, entre com uma conta Google incluída em `AUTHORIZED_EMAILS` e teste QR Code, listagem de grupos e um envio manual em um grupo que permita divulgação. Verifique primeiro `/api/health` (deve responder `{"ok":true}`).
+
+**Importante:** `autoDeployTrigger: off` no `render.yaml` evita reinícios a cada push. Para atualizar depois de um merge, execute **Manual Deploy → Deploy latest commit** no serviço Render. O Render não é criado pelo merge no GitHub: o Blueprint precisa ser aprovado no Dashboard.
+
+### Limitações reais do Render Free
+
+- O serviço **suspende depois de 15 minutos sem tráfego de entrada**. Enquanto suspenso, a conexão WhatsApp está desligada e a aplicação não processa tarefas.
+- O sistema usa **Baileys**, integração não oficial, e mantém autenticação do WhatsApp em arquivos locais (`WHATSAPP_AUTH_DIR`). O disco do Render Free é efêmero: reinícios, redeploys e suspensões **apagam a sessão**. Será necessário conectar novamente via QR Code; não considere esse ambiente seguro para publicação automática ou disponibilidade contínua.
+- Evite estratégias de *keep-alive* para simular funcionamento 24/7. Elas não resolvem o armazenamento efêmero nem os riscos da conexão não oficial.
+- O limite de 10 envios/hora e o estado do servidor também são **apenas em memória**. Render Free é **um protótipo de uso assistido**, não produção para seu amigo.
+- As 750 horas gratuitas do workspace são compartilhadas com os demais Free Web Services; acompanhe o consumo no painel e confirme que não há recursos pagos selecionados.
+- Para trabalhar com agendamentos confiáveis, primeiro será preciso avaliar **persistência segura de sessão, fila de tarefas, execução contínua** e políticas das plataformas.
+
+### Caso opte pela criação manual (sem Blueprint)
+
+Crie **New → Web Service**, selecione o repositório e branch `main`, runtime Node, plano Free, **Build Command** `bun install && bun run build`, **Start Command** `bun run start`, **Health Check Path** `/api/health`. Cadastre `NODE_ENV=production`, `FIREBASE_PROJECT_ID=affiliate-operator`, `AUTHORIZED_EMAILS` com o operador e `WHATSAPP_AUTH_DIR=./.wa-auth`. Desative **Auto-Deploy** por enquanto. Complete os mesmos passos no Firebase Authentication.
+
 ## Verificações
 
 - **bun run lint** — verificação TypeScript

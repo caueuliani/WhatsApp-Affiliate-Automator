@@ -1,0 +1,23 @@
+# PR #3: aplicação privada, frontend + API no mesmo Web Service.
+# Render Free é ambiente de testes: suspende sem tráfego e apaga sessões locais.
+services:
+  - type: web
+    name: affiliate-operator-devtecs
+    runtime: node
+    plan: free
+    region: virginia
+    branch: main
+    buildCommand: bun install && bun run build
+    startCommand: bun run start
+    healthCheckPath: /api/health
+    # Evita redeploys acidentais e perda da sessão ao receber novos commits.
+    autoDeployTrigger: off
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: FIREBASE_PROJECT_ID
+        value: affiliate-operator
+      - key: AUTHORIZED_EMAILS
+        sync: false
+      - key: WHATSAPP_AUTH_DIR
+        value: ./.wa-auth
