@@ -124,13 +124,13 @@ export default function SchedulePlanner({ uid, onPrepareWhatsapp, onOpenOffers }
       <strong>Agenda semanal recorrente:</strong> defina os produtos, dias, horários e canais. A agenda calcula as próximas duas semanas no fuso de São Paulo, mas <strong>não dispara mensagens nem publica posts sozinha</strong>. Seus dados ficam no navegador atual.
     </div>
 
-    <div className="grid gap-3 sm:grid-cols-3">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
       <div className="surface-card p-4"><p className="text-xs font-semibold text-slate-500">Rotinas ativas</p><p className="mt-2 text-2xl font-bold">{enabledRules}</p></div>
       <div className="surface-card p-4"><p className="text-xs font-semibold text-slate-500">Ocorrências nas próximas 2 semanas</p><p className="mt-2 text-2xl font-bold">{occurrences.length}</p></div>
       <div className="surface-card p-4"><p className="text-xs font-semibold text-slate-500">Horários atingidos hoje</p><p className="mt-2 text-2xl font-bold">{pendingToday.length}</p></div>
     </div>
 
-    <div className="flex flex-wrap justify-end gap-2">
+    <div className="flex flex-wrap justify-start gap-2 sm:justify-end">
       <button type="button" onClick={exportBackup} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium hover:bg-slate-50"><Download size={16}/> Exportar agenda</button>
       <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium hover:bg-slate-50">
         <FileUp size={16}/> Importar agenda
@@ -140,7 +140,7 @@ export default function SchedulePlanner({ uid, onPrepareWhatsapp, onOpenOffers }
     {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</p>}
     {notice && <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{notice}</p>}
 
-    <form id="weekly-rule-editor" onSubmit={save} className="surface-card space-y-5 p-5 md:p-7">
+    <form id="weekly-rule-editor" onSubmit={save} className="surface-card space-y-5 p-4 sm:p-5 md:p-7">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div><h2 className="text-xl font-bold text-slate-950">{editing ? "Editar rotina" : "Nova rotina semanal"}</h2><p className="mt-1 text-sm text-slate-500">Vincule uma oferta e escolha quando revisá-la para publicação.</p></div>
         {editing && <button type="button" className="inline-flex items-center gap-1 text-sm text-slate-600" onClick={() => { setInput(initial); setEditing(null); }}><X size={16}/> Cancelar</button>}
@@ -160,10 +160,10 @@ export default function SchedulePlanner({ uid, onPrepareWhatsapp, onOpenOffers }
 
       <fieldset className="space-y-3">
         <legend className="text-sm font-semibold">Repetir toda semana nos dias:</legend>
-        <div className="flex flex-wrap gap-2">
+        <div className="grid grid-cols-4 gap-2 sm:flex sm:flex-wrap">
           {WEEKDAYS.map(day => <button key={day.id} type="button" aria-pressed={input.weekdays.includes(day.id)}
             title={day.label} onClick={() => toggleDay(day.id)}
-            className={"rounded-xl border px-4 py-2 text-sm font-semibold transition " + (input.weekdays.includes(day.id)
+            className={"min-h-11 rounded-xl border px-2 py-2 text-sm font-semibold transition sm:px-4 " + (input.weekdays.includes(day.id)
               ? "border-indigo-600 bg-indigo-600 text-white" : "border-slate-200 bg-white text-slate-600 hover:bg-indigo-50")}>{day.short}</button>)}
         </div>
       </fieldset>
@@ -191,12 +191,12 @@ export default function SchedulePlanner({ uid, onPrepareWhatsapp, onOpenOffers }
       </p>}
 
       <button disabled={offers.length === 0 || input.weekdays.length === 0} type="submit"
-        className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 text-sm font-bold text-white hover:bg-indigo-700 disabled:opacity-50">
+        className="inline-flex w-full min-h-12 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 text-sm font-bold text-white hover:bg-indigo-700 disabled:opacity-50 sm:w-auto">
         <Plus size={17}/>{editing ? "Salvar alterações" : "Salvar rotina"}
       </button>
     </form>
 
-    <section className="surface-card space-y-4 p-5 md:p-6">
+    <section className="surface-card space-y-4 p-4 sm:p-5 md:p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div><h2 className="text-lg font-bold">Rotinas configuradas</h2><p className="text-xs text-slate-500">{rules.length} de {MAX_RULES} rotinas · fuso America/Sao_Paulo</p></div>
       </div>
@@ -204,7 +204,7 @@ export default function SchedulePlanner({ uid, onPrepareWhatsapp, onOpenOffers }
       <div className="space-y-3">
         {rules.map(rule => {
           const offer = offerMap.get(rule.offerId);
-          return <article key={rule.id} className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-slate-200 p-4">
+          return <article key={rule.id} className="flex min-w-0 flex-col items-stretch gap-3 rounded-xl border border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <p className="font-semibold text-slate-950">{offer?.title || "Oferta excluída"}</p>
@@ -213,11 +213,11 @@ export default function SchedulePlanner({ uid, onPrepareWhatsapp, onOpenOffers }
               <p className="mt-1 text-sm text-slate-600">{rule.weekdays.map(id => WEEKDAYS.find(day => day.id === id)?.short).join(", ")} · {rule.time} · {channelName(rule.channel)}</p>
               {rule.destinationLabel && <p className="mt-1 text-xs text-slate-500">Destino planejado: {rule.destinationLabel}</p>}
             </div>
-            <div className="flex gap-1">
+            <div className="flex flex-wrap justify-end gap-1">
               <button title={rule.enabled ? "Pausar rotina" : "Ativar rotina"} aria-label={rule.enabled ? "Pausar rotina" : "Ativar rotina"} onClick={() => setRules(prev => prev.map(x => x.id === rule.id ? { ...x, enabled: !x.enabled, updatedAt: new Date().toISOString() } : x))}
-                type="button" className="rounded-lg p-2 text-slate-600 hover:bg-slate-100">{rule.enabled ? <Pause size={17}/> : <Play size={17}/>}</button>
+                type="button" className="min-h-11 min-w-11 rounded-lg p-2 text-slate-600 hover:bg-slate-100">{rule.enabled ? <Pause size={17}/> : <Play size={17}/>}</button>
               <button title="Editar rotina" aria-label="Editar rotina" onClick={() => edit(rule)} type="button" className="rounded-lg p-2 text-slate-600 hover:bg-slate-100"><Edit3 size={17}/></button>
-              <button title="Excluir rotina" aria-label="Excluir rotina" onClick={() => remove(rule)} type="button" className="rounded-lg p-2 text-red-700 hover:bg-red-50"><Trash2 size={17}/></button>
+              <button title="Excluir rotina" aria-label="Excluir rotina" onClick={() => remove(rule)} type="button" className="min-h-11 min-w-11 rounded-lg p-2 text-red-700 hover:bg-red-50"><Trash2 size={17}/></button>
             </div>
           </article>;
         })}
@@ -231,7 +231,7 @@ export default function SchedulePlanner({ uid, onPrepareWhatsapp, onOpenOffers }
         {occurrences.map(entry => {
           const offer = offerMap.get(entry.offerId);
           if (!offer) return null;
-          return <div key={entry.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 p-3 sm:p-4">
+          return <div key={entry.id} className="flex min-w-0 flex-col items-stretch gap-3 rounded-xl border border-slate-200 p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4">
             <div className="flex min-w-0 items-start gap-3">
               <div className="min-w-[74px] rounded-lg bg-indigo-50 px-2 py-2 text-center text-xs font-semibold text-indigo-700">
                 {formatDate(entry.date)}<span className="mt-1 block text-sm">{entry.time}</span>
@@ -243,8 +243,8 @@ export default function SchedulePlanner({ uid, onPrepareWhatsapp, onOpenOffers }
               </div>
             </div>
             {entry.channel === "whatsapp" ?
-              <button onClick={() => onPrepareWhatsapp(offer)} type="button" className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-100"><Send size={15}/> Preparar envio</button>
-            : <button onClick={() => void copyInstagram(offer)} type="button" className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-200"><ClipboardCopy size={15}/> Copiar legenda</button>}
+              <button onClick={() => onPrepareWhatsapp(offer)} type="button" className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-lg bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 sm:w-auto"><Send size={15}/> Preparar envio</button>
+            : <button onClick={() => void copyInstagram(offer)} type="button" className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-lg bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-200 sm:w-auto"><ClipboardCopy size={15}/> Copiar legenda</button>}
           </div>;
         })}
       </div>
