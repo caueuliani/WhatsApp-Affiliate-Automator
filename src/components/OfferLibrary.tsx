@@ -3,7 +3,7 @@ import { CalendarClock, Download, Edit3, FileUp, PackagePlus, Search, Trash2, Co
 import { createDraft, exportLibrary, MAX_OFFERS, parseLibrary, scheduledState, storageKey, type DraftInput, type OfferDraft } from "../offers/library";
 
 type Props = { uid: string; onUse: (draft: OfferDraft) => void };
-const empty: DraftInput = { title: "", message: "", link: "", price: "", plannedAt: "" };
+const empty: DraftInput = { title: "", message: "", link: "", price: "", affiliateProgram: "other", trackingLabel: "", plannedAt: "" };
 function localDateTime(iso: string | null): string {
   if (!iso) return "";
   const d = new Date(iso);
@@ -11,7 +11,7 @@ function localDateTime(iso: string | null): string {
   return adjusted.toISOString().slice(0, 16);
 }
 function fromDraft(offer: OfferDraft): DraftInput {
-  return { title: offer.title, message: offer.message, link: offer.link, price: offer.priceCents === null ? "" : String(offer.priceCents / 100), plannedAt: localDateTime(offer.plannedAt) };
+  return { title: offer.title, message: offer.message, link: offer.link, price: offer.priceCents === null ? "" : String(offer.priceCents / 100), affiliateProgram: offer.affiliateProgram || "other", trackingLabel: offer.trackingLabel || "", plannedAt: localDateTime(offer.plannedAt) };
 }
 const currency = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -126,6 +126,21 @@ export default function OfferLibrary({ uid, onUse }: Props) {
       <label className="block space-y-1"><span className="text-sm font-medium">Link de afiliado (HTTPS)</span>
         <input maxLength={2048} type="url" value={form.link} onChange={e => update("link", e.target.value)} placeholder="https://..." className="w-full rounded-lg border p-3"/>
       </label>
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <label className="block space-y-1"><span className="text-sm font-medium">Programa de afiliados</span>
+          <select value={form.affiliateProgram || "other"} onChange={e => update("affiliateProgram", e.target.value)} className="w-full rounded-lg border p-3 bg-white">
+            <option value="mercado_livre">Mercado Livre</option>
+            <option value="shopee">Shopee</option>
+            <option value="amazon">Amazon</option>
+            <option value="other">Outro / não informado</option>
+          </select>
+        </label>
+        <label className="block space-y-1"><span className="text-sm font-medium">Etiqueta de campanha (opcional)</span>
+          <input maxLength={60} value={form.trackingLabel || ""} onChange={e => update("trackingLabel", e.target.value)} placeholder="Ex.: jardim-novembro" className="w-full rounded-lg border p-3"/>
+        </label>
+      </div>
+      <p className="text-xs text-slate-500">A etiqueta ajuda a organizar os links. Para rastrear comissões no Mercado Livre, crie a etiqueta e o link rastreável no próprio painel do programa; não modificamos sua URL.</p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <label className="block space-y-1"><span className="text-sm font-medium">Preço de referência (opcional)</span>
           <input type="number" min="0" max="1000000" step="0.01" value={form.price} onChange={e => update("price", e.target.value)} placeholder="99,90" className="w-full rounded-lg border p-3"/>
@@ -154,6 +169,7 @@ export default function OfferLibrary({ uid, onUse }: Props) {
             <div className="min-w-0">
               <h4 className="font-semibold break-words">{offer.title}</h4>
               {offer.priceCents !== null && <p className="text-sm font-semibold text-emerald-700">{currency.format(offer.priceCents / 100)}</p>}
+              {offer.trackingLabel && <p className="mt-1 text-xs text-indigo-700">Etiqueta: {offer.trackingLabel}</p>}
               {offer.plannedAt && <p className={"text-xs mt-1 " + (scheduledState(offer) === "due" ? "text-amber-700" : "text-slate-500")}>Revisar {new Date(offer.plannedAt).toLocaleString("pt-BR")}{scheduledState(offer) === "due" ? " · pendente" : ""}</p>}
             </div>
             <div className="flex flex-wrap gap-1 justify-end shrink-0">
