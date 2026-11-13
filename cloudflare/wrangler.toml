@@ -1,0 +1,15 @@
+name = "affiliate-operator-scheduler"
+main = "src/index.mjs"
+compatibility_date = "2026-11-13"
+workers_dev = true
+
+# Cron roda em UTC. A lógica converte para America/Sao_Paulo.
+[triggers]
+crons = ["*/5 * * * *"]
+
+# Crie o banco D1 e substitua o ID antes do deploy.
+[[d1_databases]]
+binding = "DB"
+database_name = "affiliate-operator-db"
+database_id = "REPLACE_WITH_REAL_D1_DATABASE_ID"
+migrations_dir = "migrations"
