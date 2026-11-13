@@ -64,11 +64,11 @@ export function extractMercadoLivreOffers(text: string): MercadoLivreCandidate[]
   const candidates: MercadoLivreCandidate[] = [];
   const seen = new Set<string>();
   // URLs from sharing sheet/WhatsApp; ignore anything that isn't an official ML host.
-  const matches = [...text.matchAll(/https?:\/\/[^\s<>"']+/gi)];
+  const matches: Array<{ 0: string; index?: number }> = [...text.matchAll(/https?:\/\/[^\s<>"']+/gi)];
   // Also accept bare meli.la shortcuts, as often copied from a mobile sharing sheet.
   if (matches.length === 0) {
     for (const m of text.matchAll(/(?:^|[\s(])((?:www\.)?meli\.la\/[a-zA-Z0-9][^\s<>"']*)/gim)) {
-      matches.push(Object.assign([m[1]], { index: m.index === undefined ? 0 : m.index + m[0].indexOf(m[1]) }) as RegExpMatchArray);
+      matches.push({ 0: m[1], index: m.index === undefined ? 0 : m.index + m[0].indexOf(m[1]) });
     }
   }
   for (const match of matches) {
