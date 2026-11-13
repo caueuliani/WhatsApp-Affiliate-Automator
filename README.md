@@ -1,3 +1,11 @@
+## Mercado Livre: importação assistida de links (PR #11)
+
+A aba **Ofertas** inclui um importador mobile-first para links gerados na Central de Afiliados / Barra de Afiliados. Ele aceita texto de compartilhamento, links \`https://meli.la/...\`, \`https://mercadolivre.com/sec/...\` e URLs oficiais de produtos, inclusive **lotes de até 20 URLs**. O botão **Colar do celular** usa a permissão nativa da área de transferência (se disponível); também é possível colar manualmente.
+
+O sistema reconhece o domínio, sugere um título quando houver texto/slug legível, marca links já cadastrados e oferece **Revisar e salvar** (cada item individualmente). Após revisão, a oferta entra na biblioteca existente, preservando a URL original **com todos os parâmetros**. Não existe conversão automática de link comum em link de afiliado, consulta de conta, scraping, captura de cookies, redirecionamento automático, nem alegação de que uma URL gera comissão.
+
+**Limitações atuais:** não é uma integração de importação automática da própria Central de Afiliados. Preço e desconto não são consultados/verificados; nunca são preenchidos automaticamente. O operador precisa confirmar dados e comissão no Mercado Livre. Os dados permanecem no \`localStorage\` do navegador até a futura migração/sincronização ao D1, disponível no backend. Mantenha backup entre dispositivos. Publicação é manual e deve respeitar as regras do programa e do canal.
+
 # WhatsApp Affiliate Operator
 
 Ferramenta **privada** para gerenciar ofertas e compartilhar **manualmente** texto e links de afiliados em grupos dos quais a conta conectada participa.

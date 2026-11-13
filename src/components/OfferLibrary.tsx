@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
+import MercadoLivreImporter from "./MercadoLivreImporter";
+import { createImportDraft, type MercadoLivreCandidate } from "../offers/mercadoLivre";
 import { CalendarClock, Download, Edit3, FileUp, PackagePlus, Search, Trash2, Copy, ArrowRight, X } from "lucide-react";
 import { createDraft, exportLibrary, MAX_OFFERS, parseLibrary, scheduledState, storageKey, type DraftInput, type OfferDraft } from "../offers/library";
 
@@ -45,6 +47,12 @@ export default function OfferLibrary({ uid, onUse }: Props) {
       const current = editing ? offers.find(offer => offer.id === editing) : undefined;
       if (!current && offers.length >= MAX_OFFERS) throw new Error("Limite de 100 ofertas. Exclua uma oferta antes de cadastrar outra.");
       const draft = createDraft(form, current?.id || crypto.randomUUID());
+      if (!current && draft.affiliateProgram === "mercado_livre" && offers.some(offer => offer.link === draft.link && !!draft.link)) {
+        throw new Error("Este link do Mercado Livre já está salvo. Edite a oferta existente em vez de duplicá-la.");
+      }
+      if (draft.affiliateProgram === "mercado_livre" && draft.title === "Produto do Mercado Livre (revisar)") {
+        throw new Error("Informe o nome real do produto antes de salvar.");
+      }
       if (current) {
         draft.createdAt = current.createdAt;
         setOffers(previous => previous.map(offer => offer.id === current.id ? draft : offer));
@@ -58,6 +66,18 @@ export default function OfferLibrary({ uid, onUse }: Props) {
   const edit = (offer: OfferDraft) => {
     setEditing(offer.id); setForm(fromDraft(offer)); setError(""); setNotice("");
     document.getElementById("offer-editor")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+  const reviewImported = (candidate: MercadoLivreCandidate) => {
+    setEditing(null);
+    setForm(createImportDraft(candidate));
+    setError("");
+    setNotice("Link de afiliado preservado. Confira o nome, o preço no anúncio e a comissão antes de salvar.");
+    document.getElementById("offer-editor")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    requestAnimationFrame(() => document.getElementById("offer-title")?.focus({ preventScroll: true }));
+  };
+  const editImported = (link: string) => {
+    const offer = offers.find(item => item.link === link);
+    if (offer) edit(offer);
   };
   const remove = (offer: OfferDraft) => {
     if (!window.confirm('Excluir a oferta "' + offer.title + '"?')) return;
@@ -112,13 +132,14 @@ export default function OfferLibrary({ uid, onUse }: Props) {
     </div>
     {error && <p role="alert" className="rounded-lg bg-red-50 text-red-700 p-3 text-sm">{error}</p>}
     {notice && <p role="status" className="rounded-lg bg-emerald-50 text-emerald-800 p-3 text-sm">{notice}</p>}
+    <MercadoLivreImporter existingLinks={offers.map(offer => offer.link)} onReview={reviewImported} onEditExisting={editImported}/>
     <form id="offer-editor" onSubmit={save} className="rounded-2xl border bg-white shadow-sm p-4 space-y-4 sm:p-5">
       <div className="flex items-center gap-2 justify-between">
         <h3 className="font-semibold text-lg flex items-center gap-2"><PackagePlus size={19}/> {editing ? "Editar oferta" : "Cadastrar oferta"}</h3>
         {editing && <button type="button" onClick={() => { setEditing(null); setForm(empty); }} className="text-sm inline-flex items-center gap-1 text-slate-500"><X size={16}/> Cancelar edição</button>}
       </div>
       <label className="block space-y-1"><span className="text-sm font-medium">Nome do produto</span>
-        <input required maxLength={120} value={form.title} onChange={e => update("title", e.target.value)} placeholder="Ex.: Headset gamer em promoção" className="w-full rounded-lg border p-3" />
+        <input id="offer-title" required maxLength={120} value={form.title} onChange={e => update("title", e.target.value)} placeholder="Ex.: Headset gamer em promoção" className="w-full rounded-lg border p-3" />
       </label>
       <label className="block space-y-1"><span className="text-sm font-medium">Texto da oferta (para o WhatsApp)</span>
         <textarea required maxLength={3000} rows={4} value={form.message} onChange={e => update("message", e.target.value)} placeholder="Descrição, condições e aviso de afiliado" className="w-full rounded-lg border p-3"/>
@@ -174,7 +195,7 @@ export default function OfferLibrary({ uid, onUse }: Props) {
             </div>
             <div className="flex shrink-0 flex-wrap justify-end gap-1">
               <button type="button" title="Editar oferta" aria-label={"Editar " + offer.title} onClick={() => edit(offer)} className="min-h-11 min-w-11 rounded-lg p-2 hover:bg-slate-100"><Edit3 size={16}/></button>
-              <button type="button" title="Duplicar oferta" aria-label={"Duplicar " + offer.title} onClick={() => duplicate(offer)} className="p-2 rounded-lg hover:bg-slate-100"><Copy size={16}/></button>
+              <button type="button" title="Duplicar oferta" aria-label={"Duplicar " + offer.title} onClick={() => duplicate(offer)} className="min-h-11 min-w-11 rounded-lg p-2 hover:bg-slate-100"><Copy size={16}/></button>
               <button type="button" title="Excluir oferta" aria-label={"Excluir " + offer.title} onClick={() => remove(offer)} className="min-h-11 min-w-11 rounded-lg p-2 text-red-700 hover:bg-red-50"><Trash2 size={16}/></button>
             </div>
           </div>
