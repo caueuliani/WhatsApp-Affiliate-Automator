@@ -133,15 +133,13 @@ export async function runSchedule(db, now = new Date()) {
   const current = await db.prepare(
     "SELECT r.owner_uid,r.rule_id,r.offer_id,r.weekdays_json,r.local_time,r.channel,r.enabled,o.payload_json FROM weekly_rules r JOIN offers o ON o.owner_uid=r.owner_uid AND o.offer_id=r.offer_id WHERE r.enabled=1 ORDER BY r.owner_uid,r.rule_id LIMIT 500"
   ).all();
-  let added = 0;
   const stamp = now.toISOString();
-  for (const rule of current.results) {
-    if (!ruleIsDue(rule, clock)) continue;
-    const result = await db.prepare(
-      "INSERT OR IGNORE INTO schedule_jobs(owner_uid,rule_id,local_date,offer_id,channel,local_time,offer_snapshot_json,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?,'pending_review',?,?)"
-    ).bind(rule.owner_uid,rule.rule_id,clock.localDate,rule.offer_id,rule.channel,rule.local_time,rule.payload_json,stamp,stamp).run();
-    added += result.meta?.changes ?? 0;
-  }
+  const commands = current.results.filter(rule => ruleIsDue(rule, clock)).map(rule => db.prepare(
+    "INSERT OR IGNORE INTO schedule_jobs(owner_uid,rule_id,local_date,offer_id,channel,local_time,offer_snapshot_json,status,created_at,updated_at) VALUES(?,?,?,?,?,?,?,'pending_review',?,?)"
+  ).bind(rule.owner_uid,rule.rule_id,clock.localDate,rule.offer_id,rule.channel,rule.local_time,rule.payload_json,stamp,stamp));
+  // D1 batch mantém este conjunto atômico e reduz round-trips; chave composta evita duplicatas.
+  const writes = commands.length ? await db.batch(commands) : [];
+  const added = writes.reduce((sum, result) => sum + (result.meta?.changes ?? 0), 0);
   return { scanned: current.results.length, added, clock };
 }
 
