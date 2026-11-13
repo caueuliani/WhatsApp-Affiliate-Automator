@@ -1,6 +1,13 @@
 # WhatsApp Affiliate Operator
 
-Ferramenta **privada** para compartilhar **manualmente** texto e links de ofertas em grupos dos quais a conta conectada participa.
+Ferramenta **privada** para gerenciar ofertas e compartilhar **manualmente** texto e links de afiliados em grupos dos quais a conta conectada participa.
+
+## Biblioteca de ofertas (fase 1)
+
+O operador pode cadastrar, editar, duplicar, excluir, buscar, filtrar e preparar rascunhos com título, mensagem, link HTTPS, preço de referência e horário planejado de revisão. Uma oferta salva pode preencher o formulário de envio; o envio exige confirmação explícita de permissão para divulgar naquele grupo. **Datas são lembretes visuais, não programações de envio automático**.
+
+As ofertas são armazenadas via **localStorage**, separadas pelo UID da conta no mesmo navegador. Elas **não sincronizam entre aparelhos** e podem desaparecer se o navegador limpar os dados. Há botões para **exportar e importar backups JSON**. O backup contém textos e links de afiliados, portanto mantenha-o em local protegido. Limite atual: 100 ofertas por navegador/operador.
+
 
 **Não é SaaS.** Não possui cobrança, assinaturas, trial, disparos automáticos, programação recorrente ou integração com Instagram.
 

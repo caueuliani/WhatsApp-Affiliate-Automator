@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { CheckCircle2, AlertCircle, Loader2, LogOut, Send, ShieldCheck, QrCode } from "lucide-react";
 import { auth, loginWithGoogle, logout } from "./firebase";
 import { onAuthStateChanged, type User } from "firebase/auth";
+import OfferLibrary from "./components/OfferLibrary";
 
 type Group = { id: string; nome: string };
 type Feedback = { ok: boolean; message: string };
@@ -33,6 +34,8 @@ export default function App() {
   const [link, setLink] = useState("");
   const [sending, setSending] = useState(false);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
+  const [groupPermissionConfirmed, setGroupPermissionConfirmed] = useState(false);
+  const [loginError, setLoginError] = useState("");
 
   useEffect(() => onAuthStateChanged(auth, current => {
     setUser(current);
@@ -44,6 +47,8 @@ export default function App() {
     setGroups([]);
     setGroupId("");
     setFeedback(null);
+    setGroupPermissionConfirmed(false);
+    setLoginError("");
   }), []);
 
   useEffect(() => {
@@ -80,6 +85,7 @@ export default function App() {
         if (!cancelled) {
           setStatusError(error instanceof Error ? error.message : "Conexão indisponível.");
           setConnected(false);
+          setGroupPermissionConfirmed(false);
         }
       }
     };
@@ -107,7 +113,7 @@ export default function App() {
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!groupId || !message.trim() || sending) return;
+    if (!groupId || !message.trim() || !groupPermissionConfirmed || sending) return;
     setSending(true);
     setFeedback(null);
     try {
@@ -117,11 +123,18 @@ export default function App() {
       setFeedback({ ok: true, message: response.message });
       setMessage("");
       setLink("");
+      setGroupPermissionConfirmed(false);
     } catch (error) {
       setFeedback({ ok: false, message: error instanceof Error ? error.message : "Erro ao enviar." });
     } finally {
       setSending(false);
     }
+  };
+
+  const handleLogin = async () => {
+    setLoginError("");
+    try { await loginWithGoogle(); }
+    catch { setLoginError("Não foi possível entrar com Google. Verifique se o domínio do Render está autorizado no Firebase Authentication."); }
   };
 
   if (authLoading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin" /></div>;
@@ -132,7 +145,8 @@ export default function App() {
         <Send className="mx-auto h-10 w-10 text-indigo-600" />
         <h1 className="text-2xl font-bold">Affiliate Operator</h1>
         <p className="text-slate-600">Ferramenta privada para organizar e compartilhar ofertas manualmente em grupos.</p>
-        <button type="button" onClick={() => void loginWithGoogle()} className="w-full rounded-lg bg-indigo-600 p-3 text-white font-semibold hover:bg-indigo-700">Entrar com Google</button>
+        <button type="button" onClick={() => void handleLogin()} className="w-full rounded-lg bg-indigo-600 p-3 text-white font-semibold hover:bg-indigo-700">Entrar com Google</button>
+        {loginError && <p role="alert" className="text-red-700 text-sm">{loginError}</p>}
       </section>
     </main>
   );
@@ -167,7 +181,7 @@ export default function App() {
               )}
               {statusError && <p role="alert" className="text-red-700 text-sm">{statusError}</p>}
             </section>
-            <section className="rounded-2xl border bg-white p-6 shadow-sm space-y-5">
+            <section id="send-offer" className="rounded-2xl border bg-white p-6 shadow-sm space-y-5">
               <div>
                 <h2 className="text-lg font-semibold">Enviar oferta a um grupo</h2>
                 <p className="text-sm text-slate-500">Envio manual, para grupos em que esta conta participa e tem permissão de publicar. Não há agendamento ou disparo em massa.</p>
@@ -175,7 +189,7 @@ export default function App() {
               <form onSubmit={event => void submit(event)} className="space-y-4">
                 <label className="block space-y-1">
                   <span className="text-sm font-medium">Grupo</span>
-                  <select required value={groupId} onChange={event => setGroupId(event.target.value)} disabled={!connected || groups.length === 0} className="w-full rounded-lg border p-3 bg-white">
+                  <select required value={groupId} onChange={event => { setGroupId(event.target.value); setGroupPermissionConfirmed(false); }} disabled={!connected || groups.length === 0} className="w-full rounded-lg border p-3 bg-white">
                     {groups.length === 0 ? <option value="">Nenhum grupo disponível</option> : groups.map(group => <option key={group.id} value={group.id}>{group.nome}</option>)}
                   </select>
                 </label>
@@ -187,14 +201,29 @@ export default function App() {
                   <span className="text-sm font-medium">Link de afiliado (HTTPS, opcional)</span>
                   <input type="url" pattern="https://.*" maxLength={2048} value={link} onChange={event => setLink(event.target.value)} className="w-full rounded-lg border p-3" placeholder="https://..." />
                 </label>
-                <p className="text-xs text-amber-800 bg-amber-50 p-3 rounded-lg">Verifique as regras do programa de afiliados e do grupo antes do envio. A ferramenta não impede restrições ou bloqueios do WhatsApp.</p>
+                <label className="flex gap-3 items-start rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                  <input type="checkbox" checked={groupPermissionConfirmed} onChange={event => setGroupPermissionConfirmed(event.target.checked)} className="mt-1" required/>
+                  Confirmo que tenho permissão para divulgar ofertas neste grupo e que o link cumpre as regras do programa de afiliados.
+                </label>
+                {message.trim() && <div className="rounded-lg border bg-slate-50 p-3 space-y-1">
+                  <p className="font-medium text-xs text-slate-500">Prévia da mensagem</p>
+                  <p className="text-sm whitespace-pre-wrap break-words">{message}{link && <><br />{link}</>}</p>
+                </div>}
+                <p className="text-xs text-slate-500">O WhatsApp pode restringir contas que usam integrações não oficiais. O envio requer confirmação manual.</p>
                 {feedback && <p role="status" className={feedback.ok ? "text-sm text-emerald-700" : "text-sm text-red-700"}>{feedback.message}</p>}
-                <button type="submit" disabled={!connected || !groupId || !message.trim() || sending} className="rounded-lg bg-indigo-600 px-5 py-3 text-white font-semibold disabled:opacity-50 flex gap-2 items-center justify-center">
+                <button type="submit" disabled={!connected || !groupId || !message.trim() || !groupPermissionConfirmed || sending} className="rounded-lg bg-indigo-600 px-5 py-3 text-white font-semibold disabled:opacity-50 flex gap-2 items-center justify-center">
                   {sending ? <Loader2 size={18} className="animate-spin"/> : <Send size={18}/>}
                   {sending ? "Solicitando envio..." : "Enviar agora"}
                 </button>
               </form>
             </section>
+            <OfferLibrary key={user.uid} uid={user.uid} onUse={draft => {
+              setMessage(draft.message);
+              setLink(draft.link);
+              setFeedback(null);
+              setGroupPermissionConfirmed(false);
+              document.getElementById("send-offer")?.scrollIntoView({ behavior: "smooth", block: "start" });
+            }}/>
             <footer className="text-xs text-slate-500 flex items-center gap-2"><ShieldCheck size={15} /> Uso privado e assistido. A confirmação da API não significa entrega ao destinatário.</footer>
           </>
         )}
