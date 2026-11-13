@@ -35,3 +35,13 @@ test("rejects malformed backups and duplicates", () => {
   assert.throws(() => parseLibrary(exportLibrary([draft, draft])));
   assert.throws(() => parseLibrary(JSON.stringify({ version: 2, offers: [] })));
 });
+
+test("salva metadados de campanha sem reescrever a URL de afiliado", () => {
+  const source = "https://www.mercadolivre.com.br/exemplo?tracking=abc123";
+  const draft = createDraft({ ...base, affiliateProgram: "mercado_livre", trackingLabel: "jardim-novembro", link: source }, "tag1");
+  assert.equal(draft.link, source);
+  assert.equal(draft.affiliateProgram, "mercado_livre");
+  assert.equal(draft.trackingLabel, "jardim-novembro");
+  assert.deepEqual(parseLibrary(exportLibrary([draft])), [draft]);
+  assert.throws(() => createDraft({ ...base, trackingLabel: "x".repeat(61) }, "bad"));
+});

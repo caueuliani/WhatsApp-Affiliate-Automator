@@ -2,9 +2,19 @@
 
 Ferramenta **privada** para gerenciar ofertas e compartilhar **manualmente** texto e links de afiliados em grupos dos quais a conta conectada participa.
 
+## Agenda semanal e etiquetas de afiliado (PR #7)
+
+- Cadastre uma oferta com o **link HTTPS gerado pelo programa de afiliados**, escolha o programa (Mercado Livre, Shopee, Amazon ou Outro) e, se quiser, uma **etiqueta interna** da campanha. A ferramenta **nunca modifica o URL rastreado**. Caso o Mercado Livre ofereça etiquetas de rastreamento, gere o link etiquetado no painel oficial e cole o link resultante no cadastro.
+- Abra **Agenda** e associe uma oferta a uma rotina recorrente, escolhendo dias da semana (0 a 6), horário em **America/Sao_Paulo**, canal (WhatsApp ou Instagram) e nome do destino. Uma mesma oferta pode ter várias rotinas e várias ofertas podem alternar entre dias.
+- A agenda exibe as próximas **duas semanas**. Para WhatsApp, o botão **Preparar envio** abre o formulário manual. Para Instagram, **Copiar legenda** prepara o texto — **não conecta uma conta e não publica**.
+- Os horários são referências visuais, sem serviço cron, fila, servidor persistente ou garantia de postagem pontual. No Render Free, o serviço suspende após inatividade. Nenhum envio automático foi ativado.
+- As rotinas ficam no `localStorage` por UID, independentemente da biblioteca de ofertas, e precisam de backup próprio (botões **Exportar agenda** / **Importar agenda**). Importar uma agenda requer que as ofertas referenciadas já existam neste navegador.
+- Para a integração futura com Instagram, será necessária uma **conta profissional**, uma aplicação Meta, permissões de publicação e arquivos de imagem/vídeo hospedados e acessíveis. Não armazenar tokens da Meta no navegador nem no GitHub.
+- Não habilite publicação automática no WhatsApp sem verificar a elegibilidade dos grupos, o consentimento dos membros e os termos do WhatsApp e do programa de afiliados. A biblioteca não valida a elegibilidade desses canais.
+
 ## Painel de operação (PR #6)
 
-A interface é dividida em **Visão geral, Ofertas, Publicar e Conexão**, com navegação responsiva para desktop e celular. O resumo mostra apenas os dados locais da biblioteca (total de ofertas, revisões vencidas e futuras). Ele **não contabiliza envios nem promete integração de agendamento real**.
+A interface é dividida em **Visão geral, Ofertas, Agenda, Publicar e Conexão**, com navegação responsiva para desktop e celular. O resumo mostra apenas os dados locais da biblioteca (total de ofertas, revisões vencidas e futuras). Ele **não contabiliza envios nem promete integração de agendamento real**.
 
 O QR Code permanece acessível em **Conexão**. O painel não altera a API de WhatsApp nem a política de sessão. **Durante testes com QR Code ativo, não realize deploy no Render Free**: o reinício pode interromper a sessão e forçar uma nova leitura.
 
@@ -15,7 +25,7 @@ O operador pode cadastrar, editar, duplicar, excluir, buscar, filtrar e preparar
 As ofertas são armazenadas via **localStorage**, separadas pelo UID da conta no mesmo navegador. Elas **não sincronizam entre aparelhos** e podem desaparecer se o navegador limpar os dados. Há botões para **exportar e importar backups JSON**. O backup contém textos e links de afiliados, portanto mantenha-o em local protegido. Limite atual: 100 ofertas por navegador/operador.
 
 
-**Não é SaaS.** Não possui cobrança, assinaturas, trial, disparos automáticos, programação recorrente ou integração com Instagram.
+**Não é SaaS.** Não possui cobrança, assinaturas, trial, disparos automáticos ou integração ativa com Instagram. Possui **planejamento semanal recorrente, mas não executa envios automáticos**.
 
 > O projeto usa Baileys, uma integração não oficial com o WhatsApp Web. Existe risco de restrição ou bloqueio da conta. Pausas e limites de envio não garantem proteção. Use somente em grupos em que seja permitido divulgar ofertas e respeite o regulamento de cada programa de afiliados.
 

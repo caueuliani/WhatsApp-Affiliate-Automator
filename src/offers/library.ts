@@ -2,12 +2,17 @@ export const MAX_OFFERS = 100;
 export const LIBRARY_VERSION = 1;
 export const storageKey = (uid: string) => "affiliate-operator:offers:v1:" + uid;
 
+export type AffiliateProgram = "mercado_livre" | "shopee" | "amazon" | "other";
+
 export interface OfferDraft {
   id: string;
   title: string;
   message: string;
   link: string;
   priceCents: number | null;
+  /** Metadata only; never changes the original affiliate URL. */
+  affiliateProgram?: AffiliateProgram;
+  trackingLabel?: string;
   plannedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -18,6 +23,8 @@ export interface DraftInput {
   message: string;
   link: string;
   price: string;
+  affiliateProgram?: AffiliateProgram;
+  trackingLabel?: string;
   plannedAt: string;
 }
 
@@ -53,7 +60,16 @@ export function createDraft(input: DraftInput, id: string, now = new Date()): Of
     if (!Number.isFinite(parsed.getTime())) throw new Error("Data de planejamento inválida.");
     plannedAt = parsed.toISOString();
   }
-  return { id, title, message, link, priceCents, plannedAt, createdAt: now.toISOString(), updatedAt: now.toISOString() };
+
+  const affiliateProgram = input.affiliateProgram || "other";
+  if (!["mercado_livre", "shopee", "amazon", "other"].includes(affiliateProgram)) {
+    throw new Error("Programa de afiliados desconhecido.");
+  }
+  const trackingLabel = (input.trackingLabel || "").trim();
+  if (trackingLabel.length > 60 || /[\u0000-\u001F]/.test(trackingLabel)) {
+    throw new Error("A etiqueta deve ter até 60 caracteres e não pode conter quebras de linha.");
+  }
+  return { id, title, message, link, priceCents, affiliateProgram, trackingLabel, plannedAt, createdAt: now.toISOString(), updatedAt: now.toISOString() };
 }
 
 export function scheduledState(offer: OfferDraft, now = new Date()): "unscheduled" | "upcoming" | "due" {
@@ -71,6 +87,8 @@ function isOffer(value: unknown): value is OfferDraft {
     && typeof x.link === "string" && x.link.length <= 2048
     && (x.link === "" || (() => { try { return new URL(x.link as string).protocol === "https:"; } catch { return false; } })())
     && (x.priceCents === null || (Number.isInteger(x.priceCents) && (x.priceCents as number) >= 0 && (x.priceCents as number) <= 100000000))
+    && (x.affiliateProgram === undefined || ["mercado_livre", "shopee", "amazon", "other"].includes(x.affiliateProgram as string))
+    && (x.trackingLabel === undefined || (typeof x.trackingLabel === "string" && x.trackingLabel.length <= 60 && !/[\u0000-\u001F]/.test(x.trackingLabel)))
     && (x.plannedAt === null || validIso(x.plannedAt))
     && validIso(x.createdAt) && validIso(x.updatedAt);
 }
