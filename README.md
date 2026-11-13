@@ -13,6 +13,19 @@ As ofertas são armazenadas via **localStorage**, separadas pelo UID da conta no
 
 > O projeto usa Baileys, uma integração não oficial com o WhatsApp Web. Existe risco de restrição ou bloqueio da conta. Pausas e limites de envio não garantem proteção. Use somente em grupos em que seja permitido divulgar ofertas e respeite o regulamento de cada programa de afiliados.
 
+## Diagnóstico de login Google no Render
+
+No frontend, **um erro durante o popup Google** é diferente do erro `403` do backend. O app agora apresenta o código público `auth/...` retornado pelo SDK e instruções específicas; não presume que toda falha seja causada pelo domínio.
+
+Se o Google Sign-In falhar:
+1. No [Firebase Console do projeto affiliate-operator](https://console.firebase.google.com/project/affiliate-operator/authentication), acesse **Authentication → Sign-in method** e confirme o provedor **Google** ativado.
+2. Em **Authentication → Settings/Configurações → Authorized domains/Domínios autorizados**, adicione **exatamente** `affiliate-operator-devtecs-nrla.onrender.com` (somente o hostname, sem `https://`, sem barra e sem curinga `*`).
+3. Abra novamente `https://affiliate-operator-devtecs-nrla.onrender.com` e tente entrar. Se falhar, anote o **código** exibido pela aplicação. `auth/unauthorized-domain` significa falta de autorização de domínio; `auth/operation-not-allowed` indica provedor desativado; `auth/popup-blocked` indica bloqueio da janela.
+4. **Após** o login Google funcionar, se aparecer "Sua conta não está autorizada", configure `AUTHORIZED_EMAILS` no servidor Render com o e-mail exato do operador. Essa variável é **uma autorização no nosso backend**, distinta dos domínios autorizados no Firebase.
+5. Não coloque e-mails, tokens de autenticação, chaves privadas ou QR Codes em issues públicas ou logs.
+
+O Firebase Admin do backend verifica os ID Tokens do projeto `affiliate-operator`. O login não exige banco Firestore ou Firebase Hosting.
+
 ## Execução local
 
 1. Instale Bun e execute **bun install**.
