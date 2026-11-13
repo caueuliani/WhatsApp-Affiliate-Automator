@@ -1,3 +1,12 @@
+## Backup D1 entre celular e PC (PR #12)
+
+Na aba **Ofertas → Backup entre celular e computador**, o operador autorizado pode consultar a revisão salva na Cloudflare e, após confirmação explícita:
+- **Enviar para a nuvem:** envia a biblioteca de ofertas e as rotinas semanais do navegador atual para o D1. O estado remoto anterior é **substituído**; o aplicativo alerta quantidades, lê a revisão novamente antes da gravação e bloqueia upload vazio.
+- **Restaurar da nuvem:** traz ofertas e rotinas do D1, cria um backup recuperável no armazenamento local e recarrega o app. A opção **Desfazer última restauração** restaura a versão local anterior.
+- **Atualizar estado:** consulta o D1 sem alterar dados.
+
+O backend já verifica Firebase Authentication e allowlist antes de repassar dados ao Worker usando \`CLOUDFLARE_WORKER_URL\` e \`CLOUDFLARE_WORKER_TOKEN\`. Nenhum token sensível é enviado ao navegador. Esta é **transferência manual assistida, não sincronização automática em tempo real**. O Worker atualmente aplica atualizações como \`last-write-wins\`: ainda existe risco de gravações concorrentes, mesmo com a segunda leitura preventiva. Não usar dois dispositivos para editar o mesmo conjunto de dados ao mesmo tempo até adotarmos controle transacional de revisão. O Cron registra apenas revisões pendentes, nunca publica no WhatsApp.
+
 ## Mercado Livre: importação assistida de links (PR #11)
 
 A aba **Ofertas** inclui um importador mobile-first para links gerados na Central de Afiliados / Barra de Afiliados. Ele aceita texto de compartilhamento, links \`https://meli.la/...\`, \`https://mercadolivre.com/sec/...\` e URLs oficiais de produtos, inclusive **lotes de até 20 URLs**. O botão **Colar do celular** usa a permissão nativa da área de transferência (se disponível); também é possível colar manualmente.
