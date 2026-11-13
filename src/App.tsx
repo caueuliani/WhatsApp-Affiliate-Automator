@@ -10,6 +10,7 @@ import { describeGoogleLoginError } from "./auth/loginErrors";
 import OfferLibrary from "./components/OfferLibrary";
 import CloudSyncPanel from "./components/CloudSyncPanel";
 import type { CloudStateInput } from "./cloud/state";
+import { consumeIncomingShare } from "./pwa/incomingShare";
 import SchedulePlanner from "./components/SchedulePlanner";
 import WhatsAppConnection from "./components/WhatsAppConnection";
 import { getOfferSummary, type OfferSummary } from "./dashboard/summary";
@@ -75,6 +76,7 @@ export default function App() {
   const [access, setAccess] = useState<"loading" | "authorized" | "denied">("loading");
   const [accessError, setAccessError] = useState("");
   const [view, setView] = useState<View>("dashboard");
+  const [sharedText, setSharedText] = useState("");
   const [summary, setSummary] = useState<OfferSummary>({ total: 0, due: 0, upcoming: 0 });
   const [connected, setConnected] = useState(false);
   const [qr, setQr] = useState("");
@@ -122,6 +124,17 @@ export default function App() {
       });
     return () => { cancelled = true; };
   }, [user]);
+
+  useEffect(() => {
+    if (!user || access !== "authorized" || !new URLSearchParams(window.location.search).has("incoming-share")) return;
+    // Shared affiliate URLs are kept in local IndexedDB, never in the URL query.
+    window.history.replaceState(null, "", window.location.pathname);
+    void consumeIncomingShare().then(text => {
+      if (!text) return;
+      setSharedText(text);
+      setView("offers");
+    }).catch(() => { /* Manual paste remains available. */ });
+  }, [user, access]);
 
   useEffect(() => {
     if (!user || access !== "authorized") return;
@@ -355,7 +368,7 @@ export default function App() {
 
               {view === "offers" && <>
                 <CloudSyncPanel uid={user.uid} loadState={loadCloudState} saveState={saveCloudState}/>
-                <OfferLibrary uid={user.uid} onUse={draft => {
+                <OfferLibrary uid={user.uid} initialSharedText={sharedText} onSharedHandled={() => setSharedText("")} onUse={draft => {
                 setMessage(draft.message);
                 setLink(draft.link);
                 setFeedback(null);
