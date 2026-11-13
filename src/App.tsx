@@ -217,7 +217,7 @@ export default function App() {
                 </button>
               </form>
             </section>
-            <OfferLibrary key={user.uid} uid={user.uid} onUse={draft => {
+            <OfferLibrary uid={user.uid} onUse={draft => {
               setMessage(draft.message);
               setLink(draft.link);
               setFeedback(null);

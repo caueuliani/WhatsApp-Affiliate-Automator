@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { CalendarClock, Download, Edit3, FileUp, PackagePlus, Search, Trash2, Copy, ArrowRight, X } from "lucide-react";
 import { createDraft, exportLibrary, MAX_OFFERS, parseLibrary, scheduledState, storageKey, type DraftInput, type OfferDraft } from "../offers/library";
 
