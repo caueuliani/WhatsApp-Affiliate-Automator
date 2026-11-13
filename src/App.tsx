@@ -3,6 +3,7 @@ import { CheckCircle2, AlertCircle, Loader2, LogOut, Send, ShieldCheck, QrCode }
 import { auth, loginWithGoogle, logout } from "./firebase";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import OfferLibrary from "./components/OfferLibrary";
+import { describeGoogleLoginError } from "./auth/loginErrors";
 
 type Group = { id: string; nome: string };
 type Feedback = { ok: boolean; message: string };
@@ -36,6 +37,7 @@ export default function App() {
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [groupPermissionConfirmed, setGroupPermissionConfirmed] = useState(false);
   const [loginError, setLoginError] = useState("");
+  const [loginErrorCode, setLoginErrorCode] = useState("");
 
   useEffect(() => onAuthStateChanged(auth, current => {
     setUser(current);
@@ -49,6 +51,7 @@ export default function App() {
     setFeedback(null);
     setGroupPermissionConfirmed(false);
     setLoginError("");
+    setLoginErrorCode("");
   }), []);
 
   useEffect(() => {
@@ -133,8 +136,14 @@ export default function App() {
 
   const handleLogin = async () => {
     setLoginError("");
-    try { await loginWithGoogle(); }
-    catch { setLoginError("Não foi possível entrar com Google. Verifique se o domínio do Render está autorizado no Firebase Authentication."); }
+    setLoginErrorCode("");
+    try {
+      await loginWithGoogle();
+    } catch (error) {
+      const failure = describeGoogleLoginError(error);
+      setLoginError(failure.message);
+      setLoginErrorCode(failure.code);
+    }
   };
 
   if (authLoading) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin" /></div>;
@@ -146,7 +155,17 @@ export default function App() {
         <h1 className="text-2xl font-bold">Affiliate Operator</h1>
         <p className="text-slate-600">Ferramenta privada para organizar e compartilhar ofertas manualmente em grupos.</p>
         <button type="button" onClick={() => void handleLogin()} className="w-full rounded-lg bg-indigo-600 p-3 text-white font-semibold hover:bg-indigo-700">Entrar com Google</button>
-        {loginError && <p role="alert" className="text-red-700 text-sm">{loginError}</p>}
+        {loginError && <div role="alert" className="rounded-lg bg-red-50 border border-red-200 p-3 text-left space-y-2">
+          <p className="text-red-800 text-sm">{loginError}</p>
+          <p className="text-red-700 text-xs font-mono break-all">Código: {loginErrorCode}</p>
+          {loginErrorCode === "auth/unauthorized-domain" && (
+            <div className="space-y-1 text-sm text-slate-700">
+              <p>Adicione este domínio em Firebase Authentication → Configurações → Domínios autorizados:</p>
+              <code className="block rounded bg-white border px-2 py-2 break-all text-xs">{window.location.hostname}</code>
+              <a className="text-indigo-700 underline" href="https://console.firebase.google.com/project/affiliate-operator/authentication/settings" target="_blank" rel="noopener noreferrer">Abrir configurações do Firebase</a>
+            </div>
+          )}
+        </div>}
       </section>
     </main>
   );
