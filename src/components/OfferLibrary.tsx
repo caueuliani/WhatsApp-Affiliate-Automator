@@ -4,7 +4,7 @@ import { createImportDraft, type MercadoLivreCandidate } from "../offers/mercado
 import { CalendarClock, Download, Edit3, FileUp, PackagePlus, Search, Trash2, Copy, ArrowRight, X } from "lucide-react";
 import { createDraft, exportLibrary, MAX_OFFERS, parseLibrary, scheduledState, storageKey, type DraftInput, type OfferDraft } from "../offers/library";
 
-type Props = { uid: string; onUse: (draft: OfferDraft) => void };
+type Props = { uid: string; onUse: (draft: OfferDraft) => void; initialSharedText?: string; onSharedHandled?: () => void };
 const empty: DraftInput = { title: "", message: "", link: "", price: "", affiliateProgram: "other", trackingLabel: "", plannedAt: "" };
 function localDateTime(iso: string | null): string {
   if (!iso) return "";
@@ -17,7 +17,7 @@ function fromDraft(offer: OfferDraft): DraftInput {
 }
 const currency = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 
-export default function OfferLibrary({ uid, onUse }: Props) {
+export default function OfferLibrary({ uid, onUse, initialSharedText, onSharedHandled }: Props) {
   const key = storageKey(uid);
   const [offers, setOffers] = useState<OfferDraft[]>(() => {
     try { return parseLibrary(localStorage.getItem(key) || exportLibrary([])); }
@@ -132,7 +132,7 @@ export default function OfferLibrary({ uid, onUse }: Props) {
     </div>
     {error && <p role="alert" className="rounded-lg bg-red-50 text-red-700 p-3 text-sm">{error}</p>}
     {notice && <p role="status" className="rounded-lg bg-emerald-50 text-emerald-800 p-3 text-sm">{notice}</p>}
-    <MercadoLivreImporter existingLinks={offers.map(offer => offer.link)} onReview={reviewImported} onEditExisting={editImported}/>
+    <MercadoLivreImporter existingLinks={offers.map(offer => offer.link)} initialSharedText={initialSharedText} onSharedHandled={onSharedHandled} onReview={reviewImported} onEditExisting={editImported}/>
     <form id="offer-editor" onSubmit={save} className="rounded-2xl border bg-white shadow-sm p-4 space-y-4 sm:p-5">
       <div className="flex items-center gap-2 justify-between">
         <h3 className="font-semibold text-lg flex items-center gap-2"><PackagePlus size={19}/> {editing ? "Editar oferta" : "Cadastrar oferta"}</h3>

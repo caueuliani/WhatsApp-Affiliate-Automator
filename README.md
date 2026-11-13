@@ -1,3 +1,9 @@
+## PWA Android: Compartilhar do Mercado Livre (PR #13)
+
+Instale o Affiliate Operator no Android usando Chrome (**Instalar app** / **Adicionar à tela inicial**). Depois, gere seu link de afiliado na Barra de Afiliados ou Central do Mercado Livre, toque **Compartilhar** e escolha o Affiliate Operator. A aba **Ofertas** abrirá com os links encontrados, que precisam de revisão individual. O recurso depende do Android/Chromium e deve ser testado no telefone real.
+
+Privacidade: o service worker intercepta o POST \`/share-target\` sem enviar conteúdo ao servidor, grava o texto de compartilhamento (máximo 12 KB) em IndexedDB local, consome uma vez após autenticação Firebase e autorização da allowlist, e ignora dados depois de 10 minutos. A URL de afiliado não entra na query string. O service worker não armazena tokens, não faz cache de APIs privadas e não publica automaticamente. Se o navegador não suportar Web Share Target, o importador por colagem continua funcionando.
+
 ## Backup D1 entre celular e PC (PR #12)
 
 Na aba **Ofertas → Backup entre celular e computador**, o operador autorizado pode consultar a revisão salva na Cloudflare e, após confirmação explícita:

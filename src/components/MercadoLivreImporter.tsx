@@ -1,20 +1,37 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { ArrowRight, CheckCircle2, ClipboardPaste, ExternalLink, Link2, Loader2, Search, ShieldAlert } from "lucide-react";
 import { extractMercadoLivreOffers, MAX_ML_IMPORT_TEXT, type MercadoLivreCandidate } from "../offers/mercadoLivre";
 
 type Props = {
   existingLinks: string[];
+  initialSharedText?: string;
+  onSharedHandled?: () => void;
   onReview: (candidate: MercadoLivreCandidate) => void;
   onEditExisting: (link: string) => void;
 };
 
-export default function MercadoLivreImporter({ existingLinks, onReview, onEditExisting }: Props) {
+export default function MercadoLivreImporter({ existingLinks, initialSharedText, onSharedHandled, onReview, onEditExisting }: Props) {
   const [raw, setRaw] = useState("");
   const [candidates, setCandidates] = useState<MercadoLivreCandidate[]>([]);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [readingClipboard, setReadingClipboard] = useState(false);
   const existing = useMemo(() => new Set(existingLinks), [existingLinks]);
+  useEffect(() => {
+    if (!initialSharedText) return;
+    setRaw(initialSharedText);
+    setError("");
+    try {
+      const found = extractMercadoLivreOffers(initialSharedText);
+      setCandidates(found);
+      setNotice("Compartilhado do celular: " + found.length + (found.length === 1 ? " link pronto para revisão." : " links prontos para revisão."));
+    } catch (cause) {
+      setCandidates([]);
+      setError(cause instanceof Error ? cause.message : "Conteúdo compartilhado inválido.");
+    }
+    onSharedHandled?.();
+  }, [initialSharedText]);
+
   const handleAnalyze = (event: React.FormEvent) => {
     event.preventDefault();
     setError(""); setNotice("");
@@ -52,7 +69,7 @@ export default function MercadoLivreImporter({ existingLinks, onReview, onEditEx
       </div>
       <h2 id="ml-importer-heading" className="mt-2 text-xl font-extrabold text-slate-950">Importar links da Central de Afiliados</h2>
       <p className="mt-2 text-sm leading-6 text-slate-700">
-        No Mercado Livre, gere o link pela <strong>sua conta de afiliado</strong>, copie a mensagem ou o endereço e cole aqui. Aceitamos um ou vários links por vez, sem modificar o rastreamento original.
+        No Mercado Livre, gere o link pela <strong>sua conta de afiliado</strong>. No Android, compartilhe diretamente para o Affiliate Operator instalado; ou copie a mensagem e cole aqui. Aceitamos um ou vários links por vez, sem modificar o rastreamento original.
       </p>
     </div>
     <form className="space-y-4 p-4 sm:p-6" onSubmit={handleAnalyze}>
