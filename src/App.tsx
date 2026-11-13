@@ -8,11 +8,12 @@ import { onAuthStateChanged, type User } from "firebase/auth";
 import { auth, loginWithGoogle, logout } from "./firebase";
 import { describeGoogleLoginError } from "./auth/loginErrors";
 import OfferLibrary from "./components/OfferLibrary";
+import SchedulePlanner from "./components/SchedulePlanner";
 import { getOfferSummary, type OfferSummary } from "./dashboard/summary";
 
 type Group = { id: string; nome: string };
 type Feedback = { ok: boolean; message: string };
-type View = "dashboard" | "offers" | "publish" | "settings";
+type View = "dashboard" | "offers" | "schedule" | "publish" | "settings";
 
 type NavItem = {
   id: View;
@@ -23,6 +24,7 @@ type NavItem = {
 const nav: NavItem[] = [
   { id: "dashboard", title: "Visão geral", icon: LayoutDashboard, description: "Resumo da operação" },
   { id: "offers", title: "Ofertas", icon: Package, description: "Biblioteca e rascunhos" },
+  { id: "schedule", title: "Agenda", icon: CalendarClock, description: "Rotinas semanais e canais" },
   { id: "publish", title: "Publicar", icon: Send, description: "Envio manual" },
   { id: "settings", title: "Conexão", icon: Settings2, description: "WhatsApp e conta" },
 ];
@@ -351,6 +353,7 @@ export default function App() {
                     <p className="mt-3 max-w-xl text-sm leading-6 text-indigo-100">Cadastre produtos, planeje revisões e prepare mensagens. Você decide quando compartilhar em cada grupo autorizado.</p>
                     <div className="mt-6 flex flex-wrap gap-2">
                       <button onClick={() => navigate("offers")} type="button" className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-bold text-indigo-800 hover:bg-indigo-50"><Plus size={17}/> Nova oferta</button>
+                      <button onClick={() => navigate("schedule")} type="button" className="inline-flex items-center gap-2 rounded-xl border border-white/35 px-4 py-3 text-sm font-semibold text-white hover:bg-white/10">Montar agenda semanal <CalendarClock size={17}/></button>
                       <button onClick={() => navigate("publish")} type="button" className="inline-flex items-center gap-2 rounded-xl border border-white/35 px-4 py-3 text-sm font-semibold text-white hover:bg-white/10">Preparar publicação <ArrowRight size={17}/></button>
                     </div>
                   </div>
@@ -387,6 +390,14 @@ export default function App() {
                 navigate("publish");
               }}/>}
 
+              {view === "schedule" && <SchedulePlanner uid={user.uid} onOpenOffers={() => navigate("offers")} onPrepareWhatsapp={offer => {
+                setMessage(offer.message);
+                setLink(offer.link);
+                setFeedback(null);
+                setGroupPermissionConfirmed(false);
+                navigate("publish");
+              }}/>}
+ 
               {view === "publish" && <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
                 <div className="surface-card space-y-5 p-5 sm:p-7">
                   <div>
