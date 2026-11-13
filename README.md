@@ -2,6 +2,12 @@
 
 Ferramenta **privada** para gerenciar ofertas e compartilhar **manualmente** texto e links de afiliados em grupos dos quais a conta conectada participa.
 
+## Painel de operação (PR #6)
+
+A interface é dividida em **Visão geral, Ofertas, Publicar e Conexão**, com navegação responsiva para desktop e celular. O resumo mostra apenas os dados locais da biblioteca (total de ofertas, revisões vencidas e futuras). Ele **não contabiliza envios nem promete integração de agendamento real**.
+
+O QR Code permanece acessível em **Conexão**. O painel não altera a API de WhatsApp nem a política de sessão. **Durante testes com QR Code ativo, não realize deploy no Render Free**: o reinício pode interromper a sessão e forçar uma nova leitura.
+
 ## Biblioteca de ofertas (fase 1)
 
 O operador pode cadastrar, editar, duplicar, excluir, buscar, filtrar e preparar rascunhos com título, mensagem, link HTTPS, preço de referência e horário planejado de revisão. Uma oferta salva pode preencher o formulário de envio; o envio exige confirmação explícita de permissão para divulgar naquele grupo. **Datas são lembretes visuais, não programações de envio automático**.
