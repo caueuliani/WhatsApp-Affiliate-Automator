@@ -9,7 +9,7 @@ createRoot(document.getElementById('root')!).render(
   </StrictMode>,
 );
 
-if (import.meta.env.PROD && "serviceWorker" in navigator) {
+if ("serviceWorker" in navigator && !["localhost", "127.0.0.1"].includes(window.location.hostname)) {
   window.addEventListener("load", () => {
     void navigator.serviceWorker.register("/share-worker.js", { scope: "/" }).catch(() => {
       // Optional mobile share target; paste remains available.

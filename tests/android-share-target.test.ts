@@ -26,7 +26,7 @@ test("share target intercepts locally without transmitting URLs to the backend",
   assert.match(code, /url\.pathname !== "\/share-target"/);
   assert.match(code, /indexedDB\.open/);
   assert.match(code, /MAX_TEXT = 12000/);
-  assert.match(code, /Response\.redirect\(new URL\("\/\\?incoming-share=1"/);
+  assert.ok(code.includes('Response.redirect(new URL("/?incoming-share=1"'));
   assert.doesNotMatch(code, /fetch\(/);
   assert.doesNotMatch(code, /cache\.put|caches\.open/);
 });
