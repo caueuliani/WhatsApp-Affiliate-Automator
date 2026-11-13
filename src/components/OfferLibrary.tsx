@@ -100,11 +100,11 @@ export default function OfferLibrary({ uid, onUse }: Props) {
     <div className="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-900">
       <strong>Biblioteca e planejamento:</strong> as ofertas são armazenadas neste navegador, por conta Google. Datas são lembretes visuais: nenhuma mensagem é enviada automaticamente. Exporte um backup para usar em outro dispositivo.
     </div>
-    <div className="flex flex-wrap gap-2 justify-between items-center">
+    <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
       <div className="flex gap-2 items-center text-sm font-medium text-slate-700"><CalendarClock size={18} /> {offers.length} ofertas · {due} planejadas vencidas · {upcoming} futuras</div>
       <div className="flex flex-wrap gap-2">
-        <button type="button" onClick={exportBackup} className="inline-flex gap-1 items-center rounded-lg border px-3 py-2 text-sm bg-white hover:bg-slate-50"><Download size={15}/> Exportar</button>
-        <label className="inline-flex gap-1 items-center rounded-lg border px-3 py-2 text-sm bg-white hover:bg-slate-50 cursor-pointer">
+        <button type="button" onClick={exportBackup} className="inline-flex min-h-11 items-center justify-center gap-1 rounded-lg border bg-white px-3 py-2 text-sm hover:bg-slate-50"><Download size={15}/> Exportar</button>
+        <label className="inline-flex min-h-11 cursor-pointer items-center justify-center gap-1 rounded-lg border bg-white px-3 py-2 text-sm hover:bg-slate-50">
           <FileUp size={15}/> Importar
           <input className="sr-only" aria-label="Importar backup JSON" type="file" accept=".json,application/json" onChange={e => { void importBackup(e.currentTarget.files?.[0]); e.currentTarget.value = ""; }} />
         </label>
@@ -112,7 +112,7 @@ export default function OfferLibrary({ uid, onUse }: Props) {
     </div>
     {error && <p role="alert" className="rounded-lg bg-red-50 text-red-700 p-3 text-sm">{error}</p>}
     {notice && <p role="status" className="rounded-lg bg-emerald-50 text-emerald-800 p-3 text-sm">{notice}</p>}
-    <form id="offer-editor" onSubmit={save} className="rounded-2xl border bg-white shadow-sm p-5 space-y-4">
+    <form id="offer-editor" onSubmit={save} className="rounded-2xl border bg-white shadow-sm p-4 space-y-4 sm:p-5">
       <div className="flex items-center gap-2 justify-between">
         <h3 className="font-semibold text-lg flex items-center gap-2"><PackagePlus size={19}/> {editing ? "Editar oferta" : "Cadastrar oferta"}</h3>
         {editing && <button type="button" onClick={() => { setEditing(null); setForm(empty); }} className="text-sm inline-flex items-center gap-1 text-slate-500"><X size={16}/> Cancelar edição</button>}
@@ -150,21 +150,21 @@ export default function OfferLibrary({ uid, onUse }: Props) {
         </label>
       </div>
       <p className="text-xs text-slate-500">Preço e horário são internos; só o texto e o link entram na mensagem. Confirme preço e disponibilidade antes de divulgar.</p>
-      <button type="submit" className="rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 px-4 font-medium">{editing ? "Salvar alterações" : "Adicionar à biblioteca"}</button>
+      <button type="submit" className="w-full rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white py-3 px-4 font-semibold sm:w-auto">{editing ? "Salvar alterações" : "Adicionar à biblioteca"}</button>
     </form>
-    <div className="rounded-2xl bg-white border p-5 space-y-3">
-      <div className="flex flex-wrap gap-2 justify-between items-center">
+    <div className="rounded-2xl bg-white border p-4 space-y-3 sm:p-5">
+      <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h3 className="font-semibold text-lg">Ofertas salvas</h3>
-        <div className="inline-flex rounded-lg border overflow-hidden text-sm">
-          <button type="button" aria-pressed={filter === "all"} onClick={() => setFilter("all")} className={filter === "all" ? "bg-indigo-600 text-white px-3 py-2" : "px-3 py-2"}>Todas</button>
-          <button type="button" aria-pressed={filter === "due"} onClick={() => setFilter("due")} className={filter === "due" ? "bg-indigo-600 text-white px-3 py-2" : "px-3 py-2"}>Pendentes</button>
-          <button type="button" aria-pressed={filter === "upcoming"} onClick={() => setFilter("upcoming")} className={filter === "upcoming" ? "bg-indigo-600 text-white px-3 py-2" : "px-3 py-2"}>Futuras</button>
+        <div className="inline-flex w-full overflow-hidden rounded-lg border text-sm sm:w-auto">
+          <button type="button" aria-pressed={filter === "all"} onClick={() => setFilter("all")} className={filter === "all" ? "flex-1 bg-indigo-600 text-white px-3 py-2 sm:flex-none" : "flex-1 px-3 py-2 sm:flex-none"}>Todas</button>
+          <button type="button" aria-pressed={filter === "due"} onClick={() => setFilter("due")} className={filter === "due" ? "flex-1 bg-indigo-600 text-white px-3 py-2 sm:flex-none" : "flex-1 px-3 py-2 sm:flex-none"}>Pendentes</button>
+          <button type="button" aria-pressed={filter === "upcoming"} onClick={() => setFilter("upcoming")} className={filter === "upcoming" ? "flex-1 bg-indigo-600 text-white px-3 py-2 sm:flex-none" : "flex-1 px-3 py-2 sm:flex-none"}>Futuras</button>
         </div>
       </div>
       <label className="flex items-center gap-2 rounded-lg border px-3"><Search size={18} className="text-slate-400"/><input aria-label="Buscar ofertas" value={query} onChange={e => setQuery(e.target.value)} placeholder="Buscar produto..." className="w-full py-3 outline-none"/></label>
       {visible.length === 0 && <p className="text-sm text-slate-500 py-5">Nenhuma oferta encontrada. Cadastre a primeira acima.</p>}
       <div className="space-y-3">
-        {visible.map(offer => <article key={offer.id} className="rounded-xl border p-4 space-y-3">
+        {visible.map(offer => <article key={offer.id} className="rounded-xl border p-3 space-y-3 sm:p-4">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <h4 className="font-semibold break-words">{offer.title}</h4>
@@ -172,15 +172,15 @@ export default function OfferLibrary({ uid, onUse }: Props) {
               {offer.trackingLabel && <p className="mt-1 text-xs text-indigo-700">Etiqueta: {offer.trackingLabel}</p>}
               {offer.plannedAt && <p className={"text-xs mt-1 " + (scheduledState(offer) === "due" ? "text-amber-700" : "text-slate-500")}>Revisar {new Date(offer.plannedAt).toLocaleString("pt-BR")}{scheduledState(offer) === "due" ? " · pendente" : ""}</p>}
             </div>
-            <div className="flex flex-wrap gap-1 justify-end shrink-0">
-              <button type="button" title="Editar oferta" aria-label={"Editar " + offer.title} onClick={() => edit(offer)} className="p-2 rounded-lg hover:bg-slate-100"><Edit3 size={16}/></button>
+            <div className="flex shrink-0 flex-wrap justify-end gap-1">
+              <button type="button" title="Editar oferta" aria-label={"Editar " + offer.title} onClick={() => edit(offer)} className="min-h-11 min-w-11 rounded-lg p-2 hover:bg-slate-100"><Edit3 size={16}/></button>
               <button type="button" title="Duplicar oferta" aria-label={"Duplicar " + offer.title} onClick={() => duplicate(offer)} className="p-2 rounded-lg hover:bg-slate-100"><Copy size={16}/></button>
-              <button type="button" title="Excluir oferta" aria-label={"Excluir " + offer.title} onClick={() => remove(offer)} className="p-2 rounded-lg hover:bg-red-50 text-red-700"><Trash2 size={16}/></button>
+              <button type="button" title="Excluir oferta" aria-label={"Excluir " + offer.title} onClick={() => remove(offer)} className="min-h-11 min-w-11 rounded-lg p-2 text-red-700 hover:bg-red-50"><Trash2 size={16}/></button>
             </div>
           </div>
           <p className="text-sm text-slate-600 whitespace-pre-wrap line-clamp-3">{offer.message}</p>
           {offer.link && <p className="text-xs text-indigo-700 truncate">{offer.link}</p>}
-          <button type="button" onClick={() => onUse(offer)} className="inline-flex gap-2 items-center text-sm font-semibold bg-indigo-50 text-indigo-700 rounded-lg px-3 py-2 hover:bg-indigo-100">
+          <button type="button" onClick={() => onUse(offer)} className="inline-flex w-full min-h-11 items-center justify-center gap-2 rounded-lg bg-indigo-50 px-3 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-100 sm:w-auto">
             Usar no envio manual <ArrowRight size={16}/>
           </button>
         </article>)}

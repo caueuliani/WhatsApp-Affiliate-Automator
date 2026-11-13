@@ -11,6 +11,7 @@ import { getAuth } from "firebase-admin/auth";
 import firebaseConfig from "./firebase-applet-config.json";
 import { authorizedEmails, checkSendThrottle, isAuthorized, validateOffer } from "./src/server/validation";
 import { proxyPlannerRequest } from "./src/server/plannerProxy";
+import { pairingRetrySeconds, validatePairingPhone } from "./src/server/pairing";
 
 const projectId = process.env.FIREBASE_PROJECT_ID || firebaseConfig.projectId;
 if (projectId !== firebaseConfig.projectId) {
@@ -30,6 +31,8 @@ const connecting = new Set<string>();
 const reconnectTimers = new Map<string, ReturnType<typeof setTimeout>>();
 const busy = new Set<string>();
 const sendHistory = new Map<string, number[]>();
+const pairingRequests = new Set<string>();
+const pairingAttempts = new Map<string, number>();
 
 type OperatorRequest = express.Request & { operator?: { uid: string; email: string } };
 
@@ -60,6 +63,7 @@ async function connectWhatsApp(uid: string): Promise<void> {
         sessions.delete(uid);
         connected.delete(uid);
         qrs.delete(uid);
+        pairingRequests.delete(uid);
         if (!loggedOut && !reconnectTimers.has(uid)) {
           const timer = setTimeout(() => {
             reconnectTimers.delete(uid);
@@ -131,6 +135,56 @@ async function main(): Promise<void> {
     }
     res.json({ qr });
   });
+  // Segundo método de vinculação: código de oito caracteres para usar no mesmo celular.
+  // Somente operador autorizado; o número e o código nunca são gravados em logs ou disco.
+  app.post("/api/pairing-code", requireOperator, async (req, res) => {
+    const uid = (req as OperatorRequest).operator!.uid;
+    let phoneNumber: string;
+    try {
+      phoneNumber = validatePairingPhone(req.body?.phoneNumber);
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : "Número inválido." });
+      return;
+    }
+    const sock = sessions.get(uid);
+    if (!sock || !qrs.has(uid)) {
+      res.status(409).json({ error: "Conexão ainda não está pronta. Aguarde a geração do QR Code e tente novamente." });
+      return;
+    }
+    if (connected.has(uid) || sock.authState.creds.registered) {
+      res.status(409).json({ error: "Esta sessão já está vinculada. Aguarde a reconexão ou confira o WhatsApp." });
+      return;
+    }
+    if (pairingRequests.has(uid)) {
+      res.status(429).json({ error: "Já existe uma solicitação de código em andamento." });
+      return;
+    }
+    const seconds = pairingRetrySeconds(pairingAttempts.get(uid));
+    if (seconds > 0) {
+      res.set("Retry-After", String(seconds));
+      res.status(429).json({ error: "Aguarde " + seconds + " segundos antes de pedir outro código." });
+      return;
+    }
+    pairingRequests.add(uid);
+    pairingAttempts.set(uid, Date.now());
+    try {
+      const code = await sock.requestPairingCode(phoneNumber);
+      if (sessions.get(uid) !== sock) {
+        res.status(409).json({ error: "A conexão foi reiniciada. Aguarde o QR Code atualizar." });
+        return;
+      }
+      if (typeof code !== "string" || !/^[A-Z0-9]{8}$/i.test(code)) {
+        res.status(502).json({ error: "O WhatsApp não retornou um código válido. Tente novamente mais tarde." });
+        return;
+      }
+      res.json({ code: code.toUpperCase(), message: "Digite este código no WhatsApp em Aparelhos conectados." });
+    } catch {
+      res.status(502).json({ error: "Não foi possível gerar o código agora. Aguarde e tente novamente; alternativamente, use o QR Code." });
+    } finally {
+      pairingRequests.delete(uid);
+    }
+  });
+
   app.get("/api/grupos", requireOperator, async (req, res) => {
     const uid = (req as OperatorRequest).operator!.uid;
     const sock = sessions.get(uid);

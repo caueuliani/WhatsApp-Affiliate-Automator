@@ -1,7 +1,7 @@
 import React, { useEffect, useState, type ComponentType } from "react";
 import {
   ArrowRight, CalendarClock, CheckCircle2, ChevronRight, CircleHelp, Clock3,
-  ExternalLink, LayoutDashboard, Loader2, LogOut, Package, Plus, QrCode,
+  ExternalLink, LayoutDashboard, Loader2, LogOut, Package, Plus,
   Send, Settings2, ShieldCheck, Smartphone, Sparkles, WifiOff
 } from "lucide-react";
 import { onAuthStateChanged, type User } from "firebase/auth";
@@ -9,6 +9,7 @@ import { auth, loginWithGoogle, logout } from "./firebase";
 import { describeGoogleLoginError } from "./auth/loginErrors";
 import OfferLibrary from "./components/OfferLibrary";
 import SchedulePlanner from "./components/SchedulePlanner";
+import WhatsAppConnection from "./components/WhatsAppConnection";
 import { getOfferSummary, type OfferSummary } from "./dashboard/summary";
 
 type Group = { id: string; nome: string };
@@ -56,61 +57,13 @@ function StatTile({ label, count, description, icon: Icon }: {
   label: string; count: number; description: string;
   icon: ComponentType<{ size?: number; className?: string }>;
 }) {
-  return <div className="surface-card p-5 md:p-6">
-    <div className="mb-5 flex items-start justify-between gap-3">
+  return <div className="surface-card p-4 md:p-6">
+    <div className="mb-3 flex items-start justify-between gap-2 md:mb-5">
       <p className="text-sm font-medium text-slate-600">{label}</p>
       <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600"><Icon size={20}/></div>
     </div>
-    <p className="text-3xl font-bold tracking-tight text-slate-950">{count}</p>
+    <p className="text-2xl font-bold tracking-tight text-slate-950 md:text-3xl">{count}</p>
     <p className="mt-1 text-xs text-slate-500">{description}</p>
-  </div>;
-}
-
-function WhatsAppConnection({ connected, qr, statusError }: {
-  connected: boolean; qr: string; statusError: string;
-}) {
-  return <div className="surface-card overflow-hidden">
-    <div className="border-b border-slate-100 px-5 py-5 md:px-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h3 className="text-lg font-bold text-slate-950">Conectar WhatsApp</h3>
-          <p className="mt-1 text-sm text-slate-500">Vincule um aparelho para visualizar os grupos disponíveis.</p>
-        </div>
-        <StatusPill connected={connected} qr={qr} />
-      </div>
-    </div>
-    <div className="px-5 py-6 md:px-6">
-      {connected ? (
-        <div className="flex gap-3 rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-emerald-800">
-          <CheckCircle2 size={24} className="shrink-0" />
-          <div>
-            <p className="font-semibold">Conta conectada</p>
-            <p className="mt-1 text-sm">A sessão está ativa nesta instância do servidor. Você já pode consultar os grupos na aba Publicar.</p>
-          </div>
-        </div>
-      ) : qr ? (
-        <div className="grid items-center gap-6 md:grid-cols-[220px_1fr]">
-          <div className="w-fit rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-            <img src={qr} alt="QR Code temporário para vincular o WhatsApp" className="block h-48 w-48" />
-          </div>
-          <div className="space-y-3">
-            <p className="text-sm font-semibold text-slate-900">No celular que possui o WhatsApp:</p>
-            <ol className="list-decimal space-y-2 pl-5 text-sm leading-relaxed text-slate-600">
-              <li>Abra o WhatsApp.</li>
-              <li>Entre em Aparelhos conectados.</li>
-              <li>Escolha Conectar aparelho e leia o QR Code.</li>
-            </ol>
-            <p className="text-xs text-amber-700">Nunca compartilhe este código: ele é uma credencial temporária de vinculação.</p>
-          </div>
-        </div>
-      ) : (
-        <div className="flex items-center gap-3 rounded-2xl bg-slate-50 p-5 text-sm text-slate-600">
-          <Loader2 size={21} className="shrink-0 animate-spin text-indigo-600" />
-          Preparando uma nova sessão e o QR Code...
-        </div>
-      )}
-      {statusError && <p role="alert" className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{statusError}</p>}
-    </div>
   </div>;
 }
 
@@ -225,6 +178,11 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  const requestPairingCode = async (phoneNumber: string): Promise<string> => {
+    const result = await api<{ code: string }>("/api/pairing-code", "POST", { phoneNumber });
+    return result.code;
+  };
+
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!groupId || !connected || !message.trim() || !groupPermissionConfirmed || sending) return;
@@ -285,9 +243,9 @@ export default function App() {
 
   const current = nav.find(item => item.id === view) ?? nav[0];
 
-  return <main className="min-h-screen bg-[#f5f7fb] text-slate-900">
+  return <main className="min-h-screen overflow-x-clip bg-[#f5f7fb] text-slate-900">
     <div className="mx-auto flex min-h-screen max-w-[1550px] flex-col md:flex-row">
-      <aside className="border-b border-slate-800 bg-[#111827] px-4 py-4 text-white md:sticky md:top-0 md:flex md:h-screen md:w-[255px] md:shrink-0 md:flex-col md:border-b-0 md:px-4 md:py-7">
+      <aside className="hidden border-b border-slate-800 bg-[#111827] px-4 py-4 text-white md:sticky md:top-0 md:flex md:h-screen md:w-[255px] md:shrink-0 md:flex-col md:border-b-0 md:px-4 md:py-7">
         <div className="flex items-center justify-between gap-3 px-1 md:px-2">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-500 text-white"><Send size={20}/></div>
@@ -319,11 +277,18 @@ export default function App() {
       </aside>
 
       <div className="min-w-0 flex-1">
-        <header className="border-b border-slate-200 bg-white/90 px-5 py-5 md:px-8 md:py-6">
-          <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-3 bg-[#111827] px-4 py-3 text-white md:hidden">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-500"><Send size={18}/></div>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-extrabold tracking-tight">Affiliate Operator</p>
+            <p className="text-[11px] text-slate-400">DevTecs · Painel do operador</p>
+          </div>
+        </div>
+        <header className="border-b border-slate-200 bg-white/90 px-4 py-4 md:px-8 md:py-6">
+          <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 sm:gap-4">
             <div>
               <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-indigo-600">Painel do operador</p>
-              <h1 className="text-2xl font-extrabold tracking-tight text-slate-950 md:text-3xl">{current.title}</h1>
+              <h1 className="text-xl font-extrabold tracking-tight text-slate-950 sm:text-2xl md:text-3xl">{current.title}</h1>
               <p className="mt-1 text-sm text-slate-500">{current.description}</p>
             </div>
             <div className="flex items-center gap-3">
@@ -335,7 +300,7 @@ export default function App() {
           </div>
         </header>
 
-        <div className="mx-auto max-w-6xl space-y-6 px-4 py-6 sm:px-5 md:px-8 md:py-8">
+        <div className="mx-auto min-w-0 max-w-6xl space-y-5 px-3 pt-4 pb-[calc(7.75rem+env(safe-area-inset-bottom))] sm:px-5 md:space-y-6 md:px-8 md:py-8">
           {access === "loading" ? (
             <div className="surface-card flex items-center justify-center gap-3 p-10 text-sm text-slate-600"><Loader2 size={22} className="animate-spin text-indigo-600"/> Validando autorização...</div>
           ) : access === "denied" ? (
@@ -346,10 +311,10 @@ export default function App() {
           ) : (
             <>
               {view === "dashboard" && <>
-                <section className="rounded-3xl bg-gradient-to-br from-[#18254f] via-[#252b65] to-[#4338a2] px-6 py-7 text-white shadow-lg shadow-indigo-100 sm:px-8 sm:py-9">
+                <section className="rounded-2xl bg-gradient-to-br from-[#18254f] via-[#252b65] to-[#4338a2] px-5 py-6 text-white shadow-lg shadow-indigo-100 sm:rounded-3xl sm:px-8 sm:py-9">
                   <div className="max-w-2xl">
                     <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-xs font-medium text-indigo-100"><Sparkles size={15}/> Seu espaço de trabalho</div>
-                    <h2 className="text-2xl font-extrabold tracking-tight md:text-3xl">Ofertas organizadas, divulgação no controle.</h2>
+                    <h2 className="text-xl font-extrabold tracking-tight sm:text-2xl md:text-3xl">Ofertas organizadas, divulgação no controle.</h2>
                     <p className="mt-3 max-w-xl text-sm leading-6 text-indigo-100">Cadastre produtos, planeje revisões e prepare mensagens. Você decide quando compartilhar em cada grupo autorizado.</p>
                     <div className="mt-6 flex flex-wrap gap-2">
                       <button onClick={() => navigate("offers")} type="button" className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-bold text-indigo-800 hover:bg-indigo-50"><Plus size={17}/> Nova oferta</button>
@@ -358,7 +323,7 @@ export default function App() {
                     </div>
                   </div>
                 </section>
-                <section className="grid grid-cols-1 gap-4 sm:grid-cols-3" aria-label="Resumo local das ofertas">
+                <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4" aria-label="Resumo local das ofertas">
                   <StatTile label="Ofertas salvas" count={summary.total} description="Neste navegador" icon={Package}/>
                   <StatTile label="Revisões pendentes" count={summary.due} description="Datas planejadas já atingidas" icon={Clock3}/>
                   <StatTile label="Próximas revisões" count={summary.upcoming} description="Datas planejadas futuras" icon={CalendarClock}/>
@@ -399,7 +364,7 @@ export default function App() {
               }}/>}
  
               {view === "publish" && <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
-                <div className="surface-card space-y-5 p-5 sm:p-7">
+                <div className="surface-card min-w-0 space-y-5 p-4 sm:p-7">
                   <div>
                     <p className="text-xs font-bold uppercase tracking-widest text-indigo-600">Revisar e confirmar</p>
                     <h2 className="mt-1 text-xl font-extrabold text-slate-950">Enviar oferta a um grupo</h2>
@@ -432,7 +397,7 @@ export default function App() {
                     </label>
                     {feedback && <p role="status" className={"rounded-xl p-3 text-sm " + (feedback.ok ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-700")}>{feedback.message}</p>}
                     <button type="submit" disabled={!connected || !groupId || !message.trim() || !groupPermissionConfirmed || sending}
-                      className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-3.5 text-sm font-bold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto">
+                      className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-3.5 text-sm font-bold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto">
                       {sending ? <Loader2 size={18} className="animate-spin"/> : <Send size={18}/>}
                       {sending ? "Solicitando envio..." : "Confirmar envio manual"}
                     </button>
@@ -452,7 +417,7 @@ export default function App() {
               </section>}
 
               {view === "settings" && <div className="space-y-5">
-                <WhatsAppConnection connected={connected} qr={qr} statusError={statusError}/>
+                <WhatsAppConnection connected={connected} qr={qr} statusError={statusError} requestPairingCode={requestPairingCode}/>
                 <section className="surface-card space-y-4 p-6">
                   <h2 className="text-lg font-bold">Sua conta</h2>
                   <div className="flex flex-wrap items-center gap-3">
@@ -482,5 +447,19 @@ export default function App() {
         </div>
       </div>
     </div>
+    {access === "authorized" && <nav aria-label="Navegação inferior" className="fixed inset-x-0 bottom-0 z-50 border-t border-slate-200 bg-white/95 px-1 pt-2 shadow-[0_-6px_24px_rgba(15,23,42,0.09)] backdrop-blur-md md:hidden" style={{ paddingBottom: "max(env(safe-area-inset-bottom), 8px)" }}>
+      <div className="mx-auto grid max-w-lg grid-cols-5">
+        {nav.map(item => {
+          const Icon = item.icon;
+          return <button key={item.id} type="button" aria-label={item.title} aria-current={view === item.id ? "page" : undefined}
+            onClick={() => navigate(item.id)}
+            className={"mobile-nav-button flex min-h-[58px] min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 transition focus-visible:outline-2 focus-visible:outline-indigo-600 " +
+              (view === item.id ? "bg-indigo-50 text-indigo-700" : "text-slate-500 hover:bg-slate-50")}>
+            <Icon size={21} strokeWidth={view === item.id ? 2.5 : 2}/>
+            <span className="max-w-full truncate text-[10px] font-semibold leading-tight">{item.title}</span>
+          </button>;
+        })}
+      </div>
+    </nav>}
   </main>;
 }

@@ -2,6 +2,18 @@
 
 Ferramenta **privada** para gerenciar ofertas e compartilhar **manualmente** texto e links de afiliados em grupos dos quais a conta conectada participa.
 
+## Mobile-first + conexão WhatsApp no mesmo telefone (PR #10)
+
+O celular é a experiência principal: navegação **fixa na parte inferior** com cinco seções, áreas de toque de pelo menos 44px, formulário de 16px para não causar zoom inesperado, layouts adaptados para telas estreitas e respeito à safe-area dos aparelhos. Desktop continua com menu lateral.
+
+Na aba **Conexão**, o operador pode optar por **Mesmo celular** (padrão) ou **Outro aparelho** (QR Code).
+- No modo Mesmo celular, digite o telefone com código do país e DDD, somente números (ex.: `5511999999999`, exemplo fictício).
+- O backend autenticado solicita um **código temporário de oito caracteres** via `requestPairingCode` do Baileys, com intervalo mínimo de 60 segundos entre solicitações por operador.
+- Volte ao WhatsApp no próprio celular → Aparelhos conectados → Conectar aparelho → Conectar com número de telefone e informe o código. A tela do Affiliate Operator detectará o vínculo quando a sessão abrir.
+- O telefone e o código **não são persistidos** e não entram nos logs. Nunca publique QR Codes, códigos ou tokens.
+- O método é **não oficial** e pode falhar conforme alterações do WhatsApp. Não resolve a perda de sessão local no Render Free, nem autoriza disparos automáticos.
+- O backend permanece protegido por Firebase Authentication e allowlist; não há nova variável de ambiente.
+
 ## Motor persistente Cloudflare (PR #8)
 
 A base independente de agendamento está em [cloudflare/README.md](cloudflare/README.md). Inclui schema D1, Worker Cron a cada cinco minutos e fila auditável com prevenção de duplicatas. **Nenhum envio é automático**: o motor cria ocorrências para revisão; integração oficial de publicação será implementada depois. Isso permite que a agenda produza eventos de horário sem depender de alguém abrir o painel Render.
