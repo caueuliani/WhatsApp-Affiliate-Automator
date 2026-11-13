@@ -332,7 +332,7 @@ export default function App() {
                   <section className="surface-card space-y-4 p-6">
                     <div className="flex items-center justify-between gap-3"><h2 className="text-lg font-bold">Conexão WhatsApp</h2><StatusPill connected={connected} qr={qr}/></div>
                     <p className="text-sm leading-6 text-slate-600">
-                      {connected ? "A sessão está ativa e os grupos podem ser usados para envio manual." : "Conecte o WhatsApp com QR Code para listar os grupos participantes da conta."}
+                      {connected ? "A sessão está ativa e os grupos podem ser usados para envio manual." : "Conecte o WhatsApp por código no próprio celular ou QR Code para listar os grupos."}
                     </p>
                     <button type="button" onClick={() => navigate("settings")} className="inline-flex items-center gap-2 text-sm font-semibold text-indigo-700 hover:text-indigo-900">
                       {connected ? "Ver conexão" : "Conectar WhatsApp"} <ChevronRight size={17}/>
@@ -341,7 +341,7 @@ export default function App() {
                   </section>
                   <section className="surface-card space-y-4 p-6">
                     <div className="flex items-center gap-3"><div className="rounded-xl bg-indigo-50 p-2.5 text-indigo-600"><CircleHelp size={20}/></div><h2 className="text-lg font-bold">Como começar</h2></div>
-                    <p className="text-sm leading-6 text-slate-600">Cadastre uma oferta na biblioteca, vincule seu WhatsApp e use a aba Publicar para revisar e enviar manualmente a mensagem.</p>
+                    <p className="text-sm leading-6 text-slate-600">Na aba Ofertas, importe o link que você gerou na Central de Afiliados do Mercado Livre, revise os dados, conecte o WhatsApp e prepare publicações autorizadas.</p>
                     <p className="text-xs leading-5 text-slate-500">Planejamento não é agendamento automático. Preços e links devem ser conferidos antes da divulgação.</p>
                   </section>
                 </div>
