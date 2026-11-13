@@ -1,4 +1,4 @@
-import React, { useEffect, useState, type ComponentType } from "react";
+import React, { useCallback, useEffect, useState, type ComponentType } from "react";
 import {
   ArrowRight, CalendarClock, CheckCircle2, ChevronRight, CircleHelp, Clock3,
   ExternalLink, LayoutDashboard, Loader2, LogOut, Package, Plus,
@@ -8,6 +8,8 @@ import { onAuthStateChanged, type User } from "firebase/auth";
 import { auth, loginWithGoogle, logout } from "./firebase";
 import { describeGoogleLoginError } from "./auth/loginErrors";
 import OfferLibrary from "./components/OfferLibrary";
+import CloudSyncPanel from "./components/CloudSyncPanel";
+import type { CloudStateInput } from "./cloud/state";
 import SchedulePlanner from "./components/SchedulePlanner";
 import WhatsAppConnection from "./components/WhatsAppConnection";
 import { getOfferSummary, type OfferSummary } from "./dashboard/summary";
@@ -178,6 +180,10 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  // Stable callbacks prevent repeated Cloudflare requests during React renders.
+  const loadCloudState = useCallback(() => api<unknown>("/api/planner/state"), []);
+  const saveCloudState = useCallback((state: CloudStateInput) => api<{ ok: boolean; revision: number }>("/api/planner/state", "PUT", state), []);
+
   const requestPairingCode = async (phoneNumber: string): Promise<string> => {
     const result = await api<{ code: string }>("/api/pairing-code", "POST", { phoneNumber });
     return result.code;
@@ -347,13 +353,16 @@ export default function App() {
                 </div>
               </>}
 
-              {view === "offers" && <OfferLibrary uid={user.uid} onUse={draft => {
+              {view === "offers" && <>
+                <CloudSyncPanel uid={user.uid} loadState={loadCloudState} saveState={saveCloudState}/>
+                <OfferLibrary uid={user.uid} onUse={draft => {
                 setMessage(draft.message);
                 setLink(draft.link);
                 setFeedback(null);
                 setGroupPermissionConfirmed(false);
                 navigate("publish");
-              }}/>}
+              }}/>
+              </>}
 
               {view === "schedule" && <SchedulePlanner uid={user.uid} onOpenOffers={() => navigate("offers")} onPrepareWhatsapp={offer => {
                 setMessage(offer.message);
