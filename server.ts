@@ -10,6 +10,7 @@ import { initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import firebaseConfig from "./firebase-applet-config.json";
 import { authorizedEmails, checkSendThrottle, isAuthorized, validateOffer } from "./src/server/validation";
+import { proxyPlannerRequest } from "./src/server/plannerProxy";
 
 const projectId = process.env.FIREBASE_PROJECT_ID || firebaseConfig.projectId;
 if (projectId !== firebaseConfig.projectId) {
@@ -76,7 +77,8 @@ async function connectWhatsApp(uid: string): Promise<void> {
 async function main(): Promise<void> {
   const app = express();
   app.disable("x-powered-by");
-  app.use(express.json({ limit: "16kb" }));
+  // O estado sincronizado da biblioteca pode superar os 16 KB do envio individual.
+  app.use(express.json({ limit: "256kb" }));
   // Respostas da API podem conter QR Codes e dados do operador.
   app.use("/api", (_req, res, next) => {
     res.set("Cache-Control", "no-store");
@@ -185,6 +187,37 @@ async function main(): Promise<void> {
     } finally {
       busy.delete(uid);
     }
+  });
+
+  // O Worker D1 é privado: autenticação Firebase e allowlist validadas antes do proxy.
+  // Sem CLOUDFLARE_WORKER_URL e CLOUDFLARE_WORKER_TOKEN, retorna 503 sem afetar o site.
+  async function handlePlanner(req: express.Request, res: express.Response, method: "GET" | "PUT" | "POST", endpoint: string) {
+    try {
+      const uid = (req as OperatorRequest).operator!.uid;
+      const reply = await proxyPlannerRequest({
+        url: process.env.CLOUDFLARE_WORKER_URL,
+        token: process.env.CLOUDFLARE_WORKER_TOKEN,
+      }, uid, method, endpoint, method === "GET" ? undefined : req.body);
+      res.status(reply.status).json(reply.body);
+    } catch {
+      res.status(503).json({ error: "Agendador cloud indisponível ou não configurado." });
+    }
+  }
+  app.get("/api/planner/status", requireOperator, (_req, res) => {
+    const configured = Boolean(process.env.CLOUDFLARE_WORKER_URL && process.env.CLOUDFLARE_WORKER_TOKEN);
+    res.json({ configured, provider: "cloudflare-d1", deliveryEnabled: false });
+  });
+  app.get("/api/planner/state", requireOperator, (req, res) => {
+    void handlePlanner(req, res, "GET", "/internal/state");
+  });
+  app.put("/api/planner/state", requireOperator, (req, res) => {
+    void handlePlanner(req, res, "PUT", "/internal/state");
+  });
+  app.get("/api/planner/jobs", requireOperator, (req, res) => {
+    void handlePlanner(req, res, "GET", "/internal/jobs");
+  });
+  app.post("/api/planner/jobs/mark", requireOperator, (req, res) => {
+    void handlePlanner(req, res, "POST", "/internal/jobs/mark");
   });
 
   if (process.env.NODE_ENV !== "production") {

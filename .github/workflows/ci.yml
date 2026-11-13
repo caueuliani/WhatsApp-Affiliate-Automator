@@ -15,5 +15,7 @@ jobs:
         run: bun run lint
       - name: Unit tests
         run: bun run test
+      - name: Validate Cloudflare Worker syntax
+        run: node --check cloudflare/src/index.mjs && node --check cloudflare/src/scheduler.mjs
       - name: Build
         run: bun run build

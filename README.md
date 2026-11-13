@@ -2,6 +2,12 @@
 
 Ferramenta **privada** para gerenciar ofertas e compartilhar **manualmente** texto e links de afiliados em grupos dos quais a conta conectada participa.
 
+## Motor persistente Cloudflare (PR #8)
+
+A base independente de agendamento está em [cloudflare/README.md](cloudflare/README.md). Inclui schema D1, Worker Cron a cada cinco minutos e fila auditável com prevenção de duplicatas. **Nenhum envio é automático**: o motor cria ocorrências para revisão; integração oficial de publicação será implementada depois. Isso permite que a agenda produza eventos de horário sem depender de alguém abrir o painel Render.
+
+O backend Express oferece endpoints autenticados \`/api/planner/status\`, \`/api/planner/state\`, \`/api/planner/jobs\` e \`/api/planner/jobs/mark\`. Eles ficam desativados (503) enquanto \`CLOUDFLARE_WORKER_URL\` e \`CLOUDFLARE_WORKER_TOKEN\` não forem configurados no Render. O token privado nunca sai do servidor; Firebase Auth continua obrigatório. A interface ainda usa os rascunhos locais, aguardando migração protegida quando o D1 estiver provisionado.
+
 ## Agenda semanal e etiquetas de afiliado (PR #7)
 
 - Cadastre uma oferta com o **link HTTPS gerado pelo programa de afiliados**, escolha o programa (Mercado Livre, Shopee, Amazon ou Outro) e, se quiser, uma **etiqueta interna** da campanha. A ferramenta **nunca modifica o URL rastreado**. Caso o Mercado Livre ofereça etiquetas de rastreamento, gere o link etiquetado no painel oficial e cole o link resultante no cadastro.
