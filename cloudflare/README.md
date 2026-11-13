@@ -4,6 +4,24 @@ Este diretório contém uma **base de agendamento persistente** para **Cloudflar
 
 > Cloudflare **ainda não está conectada à conta do ChatGPT e estes recursos não foram provisionados**. Não há Worker ou D1 ativo até seguir as etapas abaixo.
 
+## Implantar sem usar o notebook (GitHub Actions)
+
+Também existe o workflow [Cloudflare Scheduler (manual deploy)](../.github/workflows/deploy-cloudflare-scheduler.yml), que roda o Wrangler no runner Linux do GitHub. **Não executa automaticamente** ao fazer merge.
+
+1. Crie o banco **affiliate-operator-db** no dashboard Cloudflare em Workers & Pages → D1 SQL Database. Copie o UUID exato.
+2. Anote o **Account ID** da conta Cloudflare. Crie um **API Token restrito à conta** com permissões de edição de Workers Scripts e D1, suficientes para migrations e deploy. Não use API Key global.
+3. No GitHub → repositório Affiliate Operator → **Settings → Secrets and variables → Actions**, crie quatro **Repository Secrets**:
+   - `CLOUDFLARE_ACCOUNT_ID` — ID da conta Cloudflare.
+   - `CLOUDFLARE_API_TOKEN` — token da API Cloudflare, de escopo limitado.
+   - `CLOUDFLARE_D1_DATABASE_ID` — UUID do banco `affiliate-operator-db`.
+   - `CLOUDFLARE_WORKER_INTERNAL_TOKEN` — segredo aleatório forte (32+ caracteres); use o **mesmo valor** na variável `CLOUDFLARE_WORKER_TOKEN` do Render, somente depois do deploy.
+4. No GitHub, abra **Actions → Cloudflare Scheduler (manual deploy) → Run workflow**. Digite exatamente `DEPLOY` no campo de confirmação e execute na `main`.
+5. O workflow valida os Secrets, substitui o UUID no `wrangler.toml` **apenas no runner temporário**, aplica as migrations remotas, publica o Worker e injeta seu segredo de API.
+6. Leia o endereço `.workers.dev` real dos logs do workflow e configure `CLOUDFLARE_WORKER_URL` no Render. **Não cole segredos em conversas ou issues públicas.**
+7. Antes de conectar dados reais, verifique as cotas D1 e o resultado do cron no painel Cloudflare.
+
+**Aviso:** essa operação cria recursos remotos na sua conta Cloudflare. O workflow só roda manualmente, mediante confirmação. Ele não habilita publicações automáticas em WhatsApp/Instagram. Não execute se o banco, a conta ou as permissões estiverem incorretos.
+
 ## Instalação (quando houver acesso à conta Cloudflare)
 
 1. Entre na conta Cloudflare em https://dash.cloudflare.com e verifique o plano Workers Free.

@@ -1,0 +1,68 @@
+name: Cloudflare Scheduler (manual deploy)
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: "Digite DEPLOY para aprovar a migration e o deploy do Worker"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudflare-affiliate-operator
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: ${{ inputs.confirmation == 'DEPLOY' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      D1_DATABASE_ID: ${{ secrets.CLOUDFLARE_D1_DATABASE_ID }}
+      INTERNAL_TOKEN: ${{ secrets.CLOUDFLARE_WORKER_INTERNAL_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Validate secrets and inject D1 database UUID locally
+        working-directory: cloudflare
+        shell: bash
+        run: |
+          node <<'NODE'
+          const { readFileSync, writeFileSync } = require("node:fs");
+          const account = process.env.CLOUDFLARE_ACCOUNT_ID || "";
+          const apiToken = process.env.CLOUDFLARE_API_TOKEN || "";
+          const dbId = process.env.D1_DATABASE_ID || "";
+          const secret = process.env.INTERNAL_TOKEN || "";
+          if (!/^[a-f0-9]{32}$/i.test(account)) throw new Error("Configure CLOUDFLARE_ACCOUNT_ID nos Secrets do GitHub.");
+          if (apiToken.length < 10) throw new Error("Configure CLOUDFLARE_API_TOKEN nos Secrets do GitHub.");
+          if (!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(dbId)) {
+            throw new Error("Configure CLOUDFLARE_D1_DATABASE_ID com o UUID real do banco criado.");
+          }
+          if (secret.length < 32) throw new Error("Configure CLOUDFLARE_WORKER_INTERNAL_TOKEN com ao menos 32 caracteres aleatórios.");
+          const file = "wrangler.toml";
+          const current = readFileSync(file, "utf8");
+          const expected = "REPLACE_WITH_REAL_D1_DATABASE_ID";
+          if (!current.includes(expected)) throw new Error("Placeholder do wrangler.toml não foi encontrado.");
+          writeFileSync(file, current.replace(expected, dbId));
+          process.stdout.write("Segredos verificados; configuração temporária preparada sem alterar o Git.\n");
+          NODE
+      - name: Apply D1 migrations to the named database
+        working-directory: cloudflare
+        run: npx --yes wrangler@4 d1 migrations apply affiliate-operator-db --remote
+      - name: Deploy Worker and UTC Cron schedule
+        working-directory: cloudflare
+        run: npx --yes wrangler@4 deploy
+      - name: Apply Worker private authentication secret
+        working-directory: cloudflare
+        shell: bash
+        run: |
+          printf "%s" "$INTERNAL_TOKEN" | npx --yes wrangler@4 secret put INTERNAL_API_TOKEN
