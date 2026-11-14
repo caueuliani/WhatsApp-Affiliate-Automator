@@ -9,7 +9,7 @@ import { auth, loginWithGoogle, logout } from "./firebase";
 import { describeGoogleLoginError } from "./auth/loginErrors";
 import OfferLibrary from "./components/OfferLibrary";
 import CloudSyncPanel from "./components/CloudSyncPanel";
-import type { CloudStateInput } from "./cloud/state";
+import type { CloudSaveInput } from "./cloud/state";
 import { consumeIncomingShare } from "./pwa/incomingShare";
 import SchedulePlanner from "./components/SchedulePlanner";
 import WhatsAppConnection from "./components/WhatsAppConnection";
@@ -195,7 +195,7 @@ export default function App() {
 
   // Stable callbacks prevent repeated Cloudflare requests during React renders.
   const loadCloudState = useCallback(() => api<unknown>("/api/planner/state"), []);
-  const saveCloudState = useCallback((state: CloudStateInput) => api<{ ok: boolean; revision: number }>("/api/planner/state", "PUT", state), []);
+  const saveCloudState = useCallback((state: CloudSaveInput) => api<{ ok: boolean; revision: number }>("/api/planner/state", "PUT", state), []);
 
   const requestPairingCode = async (phoneNumber: string): Promise<string> => {
     const result = await api<{ code: string }>("/api/pairing-code", "POST", { phoneNumber });

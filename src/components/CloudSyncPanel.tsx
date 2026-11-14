@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { Cloud, CloudDownload, CloudUpload, DatabaseZap, Loader2, RotateCcw, ShieldCheck } from "lucide-react";
-import { parseCloudSnapshot, readLocalCloudSnapshot, recoveryIsAvailable, restoreCloudToLocal, undoCloudRestore, type CloudSnapshot, type CloudStateInput } from "../cloud/state";
+import { parseCloudSnapshot, readLocalCloudSnapshot, recoveryIsAvailable, restoreCloudToLocal, undoCloudRestore, type CloudSnapshot, type CloudSaveInput } from "../cloud/state";
 
 type Props = {
   uid: string;
   loadState: () => Promise<unknown>;
-  saveState: (state: CloudStateInput) => Promise<{ ok: boolean; revision: number }>;
+  saveState: (state: CloudSaveInput) => Promise<{ ok: boolean; revision: number }>;
 };
 
 export default function CloudSyncPanel({ uid, loadState, saveState }: Props) {
@@ -49,12 +49,12 @@ export default function CloudSyncPanel({ uid, loadState, saveState }: Props) {
         ? "ATENÇÃO: os " + latest.offers.length + " produtos e " + latest.rules.length + " rotinas que já estão no D1 serão substituídos pela biblioteca deste navegador (" + local.offers.length + " produtos, " + local.rules.length + " rotinas). Se outro dispositivo tiver mudanças novas, elas serão perdidas. Continuar?"
         : "Enviar " + local.offers.length + " ofertas e " + local.rules.length + " rotinas deste navegador para o Cloudflare D1? Esta ação NÃO publica mensagens.";
       if (!window.confirm(msg)) return;
-      // A second read catches most stale tabs; the current Worker does not yet support CAS revisions.
+      // Re-read before confirmation and send a real atomic expectedRevision to D1.
       const beforeWrite = parseCloudSnapshot(await loadState());
       if (beforeWrite.revision !== latest.revision) {
         throw new Error("A nuvem mudou durante sua confirmação. Atualize os dados antes de substituir.");
       }
-      const result = await saveState(local);
+      const result = await saveState({ ...local, expectedRevision: beforeWrite.revision });
       if (!result.ok || !Number.isSafeInteger(result.revision)) {
         throw new Error("A nuvem não confirmou a gravação. Não alteramos os dados locais.");
       }
@@ -140,7 +140,7 @@ export default function CloudSyncPanel({ uid, loadState, saveState }: Props) {
       {notice && <p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm leading-6 text-emerald-800">{notice}</p>}
       <div className="flex items-start gap-2 rounded-xl bg-slate-50 p-3 text-xs leading-5 text-slate-700">
         <ShieldCheck size={17} className="mt-0.5 shrink-0 text-slate-500"/>
-        <span>Somente sua conta Google autorizada pode acessar seus dados. O token privado da Cloudflare fica exclusivamente no backend. Se usar dois aparelhos, confira qual biblioteca está mais recente antes de enviar: o D1 ainda não protege contra duas gravações simultâneas.</span>
+        <span>Somente sua conta Google autorizada pode acessar seus dados. O token privado da Cloudflare fica exclusivamente no backend. As gravações verificam a revisão do D1: se outro aparelho atualizar os dados primeiro, o upload será recusado sem apagar ofertas. Ainda é necessário restaurar e enviar manualmente; não existe sincronização automática.</span>
       </div>
     </div>
   </details>;
