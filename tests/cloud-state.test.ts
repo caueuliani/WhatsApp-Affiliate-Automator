@@ -47,3 +47,8 @@ test("rejects invalid cloud payload without overwriting local records", () => {
   assert.throws(() => restoreCloudToLocal("u1", { offers: [], rules: [rule], revision: 1 }, storage));
   assert.equal(readLocalCloudSnapshot("u1", storage).offers[0].id, offer.id);
 });
+
+test("revision-aware cloud saves reject client payloads without explicit base revision", () => {
+  // The frontend will send an expectedRevision with every cloud upload.
+  assert.throws(() => parseCloudSnapshot({ offers: [], rules: [], revision: "0" }));
+});
