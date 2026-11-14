@@ -80,25 +80,51 @@ async function loadState(db, uid) {
 }
 
 async function saveState(db, uid, body) {
+  const expectedRevision = body?.expectedRevision;
+  if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 0) {
+    return reject(428, "Revisão da nuvem obrigatória. Atualize o backup antes de enviar.");
+  }
   if (!validateState(body)) return reject(400, "Biblioteca ou agenda inválida.");
+
+  // Transaction-scoped nonce identifies the one request that acquired the CAS revision.
+  // Every data operation is guarded by this nonce; stale requests are no-ops, not deletes.
+  // D1 batch is one SQLite transaction. This avoids any read-then-write race.
+  const nonce = crypto.randomUUID();
   const stamp = new Date().toISOString();
+  const activeWrite = "EXISTS (SELECT 1 FROM operator_revisions WHERE owner_uid = ? AND write_token = ?)";
   const steps = [
-    db.prepare("DELETE FROM weekly_rules WHERE owner_uid = ?").bind(uid),
-    db.prepare("DELETE FROM offers WHERE owner_uid = ?").bind(uid),
-    ...body.offers.map(offer => db.prepare(
-      "INSERT INTO offers(owner_uid,offer_id,payload_json,updated_at) VALUES(?,?,?,?)"
-    ).bind(uid, offer.id, JSON.stringify(offer), offer.updatedAt)),
-    ...body.rules.map(rule => db.prepare(
-      "INSERT INTO weekly_rules(owner_uid,rule_id,offer_id,weekdays_json,local_time,channel,enabled,payload_json,updated_at) VALUES(?,?,?,?,?,?,?,?,?)"
-    ).bind(uid, rule.id, rule.offerId, JSON.stringify(rule.weekdays), rule.time, rule.channel, rule.enabled ? 1 : 0, JSON.stringify(rule), rule.updatedAt)),
+    // First upload: the row does not exist. Only base revision 0 may create it.
     db.prepare(
-      "INSERT INTO operator_revisions(owner_uid,revision,saved_at) VALUES(?,1,?) ON CONFLICT(owner_uid) DO UPDATE SET revision = revision + 1, saved_at = excluded.saved_at"
-    ).bind(uid, stamp),
+      "INSERT OR IGNORE INTO operator_revisions(owner_uid,revision,saved_at,write_token) SELECT ?,1,?,? WHERE ?=0"
+    ).bind(uid, stamp, nonce, expectedRevision),
+    // Subsequent uploads: advance ONLY if the revision still equals the client's base.
+    db.prepare(
+      "UPDATE operator_revisions SET revision=revision+1,saved_at=?,write_token=? WHERE owner_uid=? AND revision=?"
+    ).bind(stamp, nonce, uid, expectedRevision),
+    db.prepare(
+      "DELETE FROM weekly_rules WHERE owner_uid=? AND " + activeWrite
+    ).bind(uid, uid, nonce),
+    db.prepare(
+      "DELETE FROM offers WHERE owner_uid=? AND " + activeWrite
+    ).bind(uid, uid, nonce),
+    ...body.offers.map(offer => db.prepare(
+      "INSERT INTO offers(owner_uid,offer_id,payload_json,updated_at) SELECT ?,?,?,? WHERE " + activeWrite
+    ).bind(uid, offer.id, JSON.stringify(offer), offer.updatedAt, uid, nonce)),
+    ...body.rules.map(rule => db.prepare(
+      "INSERT INTO weekly_rules(owner_uid,rule_id,offer_id,weekdays_json,local_time,channel,enabled,payload_json,updated_at) SELECT ?,?,?,?,?,?,?,?,? WHERE " + activeWrite
+    ).bind(uid, rule.id, rule.offerId, JSON.stringify(rule.weekdays), rule.time, rule.channel,
+      rule.enabled ? 1 : 0, JSON.stringify(rule), rule.updatedAt, uid, nonce)),
   ];
-  // Batch executa como transação; versões concorrentes ainda são last-write-wins.
-  await db.batch(steps);
-  const row = await db.prepare("SELECT revision FROM operator_revisions WHERE owner_uid = ?").bind(uid).first();
-  return json({ ok: true, revision: row?.revision ?? 1 });
+  const results = await db.batch(steps);
+  const claims = (results[0]?.meta?.changes ?? 0) + (results[1]?.meta?.changes ?? 0);
+  if (claims !== 1) {
+    const current = await db.prepare("SELECT revision FROM operator_revisions WHERE owner_uid = ?").bind(uid).first();
+    return json({
+      error: "Conflito: o backup na nuvem mudou em outro dispositivo. Nenhum dado foi sobrescrito. Atualize a revisão antes de tentar novamente.",
+      currentRevision: current?.revision ?? 0,
+    }, 409);
+  }
+  return json({ ok: true, revision: expectedRevision + 1 });
 }
 
 async function listJobs(db, uid) {
