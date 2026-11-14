@@ -1,3 +1,16 @@
+
+## Concorrência no D1 — Compare-and-swap (PR #15)
+
+O upload agora exige \`expectedRevision\`, um inteiro não negativo correspondente à revisão lida pelo cliente. O Worker tenta obter a revisão dentro de um único \`D1.batch()\` transacional; cada instrução que apaga ou insere ofertas e rotinas depende de um token único de posse da mesma operação. Caso a revisão esteja desatualizada, **nenhuma oferta ou rotina é alterada** e a API retorna HTTP \`409\` com \`currentRevision\`, em vez de sobrescrever os dados de outro aparelho. A migration \`0002_revision_write_token.sql\` adiciona apenas uma coluna à tabela \`operator_revisions\` e preserva revisões e backups anteriores.
+
+**Ordem de implantação obrigatória (evita quebra):**
+1. Executar o workflow manual **Cloudflare Scheduler (manual deploy)** na branch main com confirmação \`DEPLOY\`, que aplica migration 0002 antes de implantar o novo Worker.
+2. Confirmar workflow verde.
+3. Implantar a nova main no Render; até então a versão Render antiga pode usar o Worker novo apenas com uploads antigos, que serão recusados com 428 (sem apagar nada).
+4. Testar backup e conflito entre dois navegadores, verificar que os dados anteriores permanecem intactos.
+
+Não ativar sincronização automática nem executar gravação de teste com dados de produção sem backup.
+
 # Cloudflare Scheduler — Affiliate Operator (PR #8)
 
 Este diretório contém uma **base de agendamento persistente** para **Cloudflare Workers Cron + D1**, separada do Render Free. O Worker roda a cada cinco minutos, calcula o dia e a hora em \`America/Sao_Paulo\`, identifica rotinas vencidas e cria uma **ocorrência pendente de revisão** no D1. **Nenhum post é enviado automaticamente**, em nenhum canal.

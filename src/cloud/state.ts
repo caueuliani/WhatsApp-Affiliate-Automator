@@ -3,6 +3,7 @@ import { exportWeeklyRules, parseWeeklyRules, scheduleKey, type WeeklyRule } fro
 
 export type CloudSnapshot = { offers: OfferDraft[]; rules: WeeklyRule[]; revision: number };
 export type CloudStateInput = Pick<CloudSnapshot, "offers" | "rules">;
+export type CloudSaveInput = CloudStateInput & { expectedRevision: number };
 
 const validId = (id: string) => /^[A-Za-z0-9_-]{1,128}$/.test(id);
 
