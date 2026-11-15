@@ -1,3 +1,9 @@
+## Mercado Livre: importar arquivos CSV/TXT preparados pelo usuário (PR #18)
+
+Em **Ofertas → Importar links → Selecionar arquivo**, o operador pode escolher arquivos locais \`.csv\` ou \`.txt\` com até 12 mil caracteres e até 20 links por importação. \`TXT\` aceita a mesma colagem de URLs/mensagens; \`CSV\` aceita colunas \`produto;link\` (também vírgula e alguns nomes de coluna equivalentes). Acesse **Baixar modelo CSV** na própria interface. O parser roda localmente, não envia o arquivo ao servidor. Links fora dos domínios Mercado Livre são rejeitados, duplicatas do arquivo são agrupadas, e o operador revisa nome/seleção antes de salvar. Nenhum preço do arquivo é tratado como verificado; links originais e parâmetros de comissão são mantidos.
+
+**Importante:** o modelo CSV é um formato do Affiliate Operator, não um formato de exportação oficial do Mercado Livre. Não existe integração automática à Central nem validação independente de comissão/preço. Salvar em lote só altera a biblioteca local, mediante confirmação; o backup no Cloudflare D1 continua manual.
+
 ## Mercado Livre — revisão e salvamento em lote (PR #16)
 
 Em **Ofertas → Importar links da Central de Afiliados**, o operador pode analisar até 20 links em uma mensagem, conferir/editar os nomes, selecionar os que deseja e tocar em **Salvar selecionadas**. A função salva todas as ofertas aprovadas numa única operação local, sem modificar a URL original do afiliado. Nomes não identificados pelo texto de compartilhamento exigem preenchimento manual, links já salvos são desabilitados e o limite global da biblioteca continua 100. A importação não consulta preços, descontos, disponibilidade nem comissões, não acessa a conta do Mercado Livre e não dispara publicações. Depois de importar, use o backup D1 manual na mesma tela para transferir dados entre dispositivos.

@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { ArrowRight, CheckCircle2, ClipboardPaste, ExternalLink, Link2, ListChecks, Loader2, Search, ShieldAlert } from "lucide-react";
+import { ArrowRight, CheckCircle2, ClipboardPaste, ExternalLink, Link2, ListChecks, Loader2, Search, ShieldAlert, FileUp, FileDown } from "lucide-react";
 import { extractMercadoLivreOffers, MAX_ML_IMPORT_TEXT, type MercadoLivreCandidate } from "../offers/mercadoLivre";
 import type { MercadoLivreReviewRow } from "../offers/mercadoLivreBatch";
+import { readMercadoLivreImportFile } from "../offers/mercadoLivreFile";
 
 type Props = {
   existingLinks: string[];
@@ -71,6 +72,25 @@ export default function MercadoLivreImporter({ existingLinks, initialSharedText,
     } finally { setReadingClipboard(false); }
   };
 
+  const importFile = async (file: File | undefined) => {
+    if (!file) return;
+    setError(""); setNotice("");
+    if (file.size > 24_000) {
+      setError("Arquivo muito grande. Divida em arquivos de até 12 mil caracteres.");
+      return;
+    }
+    try {
+      const text = await file.text();
+      const found = readMercadoLivreImportFile(text, file.name);
+      setRaw("");
+      resetReview(found);
+      setNotice("Arquivo " + file.name + ": " + found.length + (found.length === 1 ? " oferta pronta" : " ofertas prontas") + " para conferência. Selecione os produtos desejados.");
+    } catch (cause) {
+      resetReview([]);
+      setError(cause instanceof Error ? cause.message : "Não foi possível ler o arquivo.");
+    }
+  };
+
   const changeReview = (link: string, patch: Partial<Reviewed>) => {
     setReview(previous => ({ ...previous, [link]: { ...previous[link], ...patch } }));
     setError("");
@@ -133,6 +153,28 @@ export default function MercadoLivreImporter({ existingLinks, initialSharedText,
           className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 py-3 text-sm font-extrabold text-amber-950 hover:bg-amber-400 disabled:opacity-50">
           <Search size={18}/> Analisar links
         </button>
+      </div>
+      <div className="rounded-xl border border-dashed border-indigo-200 bg-indigo-50/60 p-3 sm:p-4">
+        <p className="flex items-center gap-2 text-sm font-bold text-slate-900"><FileUp size={18}/> Importar arquivo CSV ou TXT</p>
+        <p className="mt-1 text-xs leading-5 text-slate-600">
+          Para listas preparadas por você ou obtidas por meio autorizado. CSV com as colunas <code>produto;link</code>; até 20 linhas por lote. Isso não acessa automaticamente sua Central de Afiliados.
+        </p>
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <label className="inline-flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-xl border border-indigo-200 bg-white px-4 py-2.5 text-sm font-bold text-indigo-700 hover:bg-indigo-50">
+            <FileUp size={17}/> Selecionar arquivo
+            <input type="file" accept=".csv,.txt,text/csv,text/plain" className="sr-only"
+              aria-label="Selecionar arquivo CSV ou TXT com links do Mercado Livre"
+              onChange={event => {
+                const input = event.currentTarget;
+                const file = input.files?.[0];
+                void importFile(file).finally(() => { input.value = ""; });
+              }}/>
+          </label>
+          <a href="/modelo-ofertas-mercado-livre.csv" download="modelo-ofertas-mercado-livre.csv"
+            className="inline-flex min-h-11 items-center justify-center gap-2 text-sm font-bold text-indigo-700 hover:underline">
+            <FileDown size={17}/> Baixar modelo CSV
+          </a>
+        </div>
       </div>
       {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm leading-6 text-red-800">{error}</p>}
       {notice && <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm leading-6 text-emerald-900">{notice}</p>}
