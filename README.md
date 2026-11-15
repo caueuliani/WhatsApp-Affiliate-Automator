@@ -1,3 +1,11 @@
+## Browser E2E no Chromium — PR #20
+
+O workflow **CI** também executa o job **Chromium UI E2E (isolated fixture)** com Playwright no GitHub Actions. Testes exercitam os componentes reais da biblioteca, importador e tela de backup em um navegador real (link individual, parâmetros de afiliado, duplicatas, lotes, CSV, rejeição de domínio falso, restauração e layout mobile). Não há dependência de serviços pagos.
+
+Os testes iniciam um servidor Vite local com a fixture \`e2e/fixture.html\`. Ela usa um **UID fictício** e armazenamento local para simular a API do D1; não tem acesso ao Firebase, conta do Matheus, WhatsApp ou Cloudflare real. A fixture não é publicada com o \`vite build\` (somente \`index.html\` vai ao \`dist\`). Os testes **não substituem** a homologação Android, autenticação Google, WhatsApp/QR, D1 real ou autorização de comissão.
+
+Para executar localmente, veja \`e2e/README.md\`. Se o job falhar, o GitHub Actions salva screenshot/trace por 7 dias para diagnóstico.
+
 ## To Do do Matheus — homologação mobile-first (PR #19)
 
 Na **Visão geral**, o card **To Do do Matheus** apresenta 45 testes organizados por prioridade: P0 (Mercado Livre básico e importação em lote), P1 (PWA Android, Cloudflare D1 e WhatsApp), P2 (responsividade e validação de segurança). Cada teste tem objetivo/resultado esperado e status \`Pendente / OK / Falhou / Bloqueado\`. O progresso fica no \`localStorage\` por conta Google e aparelho, **não sincroniza automaticamente** com D1; nenhum dado de afiliado é exportado ao copiar/baixar o relatório.

@@ -8,3 +8,7 @@ coverage/
 !.env.example
 .wa-auth/
 baileys_auth_info_*/
+
+e2e/node_modules/
+e2e/e2e-results/
+e2e/playwright-report/
