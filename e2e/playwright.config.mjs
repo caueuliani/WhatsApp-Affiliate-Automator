@@ -1,4 +1,5 @@
 import { defineConfig } from "@playwright/test";
+import { fileURLToPath } from "node:url";
 
 export default defineConfig({
   testDir: ".",
@@ -17,7 +18,10 @@ export default defineConfig({
     screenshot: "only-on-failure",
   },
   webServer: {
-    command: "bunx vite --host 127.0.0.1 --port 4173 --strictPort",
+    command: "./node_modules/.bin/vite --host 127.0.0.1 --port 4173 --strictPort",
+    cwd: fileURLToPath(new URL("../", import.meta.url)),
+    stdout: "pipe",
+    stderr: "pipe",
     url: "http://127.0.0.1:4173/e2e/fixture.html",
     timeout: 60_000,
     reuseExistingServer: !process.env.CI,
