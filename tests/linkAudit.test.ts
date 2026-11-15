@@ -23,7 +23,7 @@ test("identifica página comum, domínio falso, credenciais e HTTP sem fazer req
     offer("product","https://produto.mercadolivre.com.br/MLB-123456789-mouse-_JM"),
     offer("spoof","https://mercadolivre.com.br.evil.test/sec/link"),
     offer("credentials","https://user@meli.la/abc"),
-    offer("http","http://meli.la/abc"),
+    {...offer("http","https://meli.la/abc"),link:"http://meli.la/abc"},
   ];
   // Legacy backups may contain HTTP; this analyzer still handles corrupted data without throwing.
   const result=auditAffiliateLinks(cases);
@@ -62,7 +62,7 @@ test("link vazio, codificação inválida e programa não-Mercado Livre não der
   const result=auditAffiliateLinks([noLink,bad,other]);
   assert.equal(result.rows.length,3);
   assert.deepEqual(result.rows[0].reasons,["missing"]);
-  assert.ok(result.rows[1].reasons.includes("not_mercado_livre"));
+  assert.ok(result.rows[1].reasons.includes("unsafe_url"));
   assert.equal(result.rows[2].severity,"compatible");
 });
 

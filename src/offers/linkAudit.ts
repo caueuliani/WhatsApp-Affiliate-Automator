@@ -1,4 +1,4 @@
-import { parseMercadoLivreLink } from "./mercadoLivre";
+import { isMercadoLivreHost, parseMercadoLivreLink } from "./mercadoLivre";
 import type { OfferDraft } from "./library";
 
 export type LinkAuditSeverity = "compatible" | "review";
@@ -69,7 +69,7 @@ export function auditAffiliateLinks(offers: readonly OfferDraft[]): AffiliateLin
             // IDs are hints only. Never merge/rewrite affiliate campaigns based on a product ID.
             if (ml.itemId && (productIds.get(ml.itemId)?.size ?? 0) > 1) reasons.push("shared_product");
           } catch {
-            reasons.push("not_mercado_livre");
+            reasons.push(isMercadoLivreHost(parsed.hostname) ? "unsafe_url" : "not_mercado_livre");
           }
         }
       } catch { reasons.push("unsafe_url"); }
@@ -94,10 +94,10 @@ export function linkAuditTextReport(report: AffiliateLinkAudit): string {
     "Total: " + report.inspected + " | Precisam de revisão: " + report.attention,
     "",
   ];
-  for (const row of report.rows) {
+  for (const [index, row] of report.rows.entries()) {
     const label = row.severity === "review" ? "REVISAR" : "FORMATO COMPATÍVEL";
     // Deliberately exclude product title and URL to avoid leaking user data via reports.
-    lines.push(row.id + " — " + label + " — " + (row.reasons.join(", ") || "sem alertas de formato"));
+    lines.push("Item " + (index + 1) + " — " + label + " — " + (row.reasons.join(", ") || "sem alertas de formato"));
   }
   return lines.join("\n");
 }
