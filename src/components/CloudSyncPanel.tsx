@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Cloud, CloudDownload, CloudUpload, DatabaseZap, Loader2, RotateCcw, ShieldCheck } from "lucide-react";
 import { parseCloudSnapshot, readLocalCloudSnapshot, recoveryIsAvailable, restoreCloudToLocal, undoCloudRestore, type CloudSnapshot, type CloudSaveInput } from "../cloud/state";
+import { autoSyncEnabled, disableAutoSync, enableAutoSync, getAutoSyncStatus, markManualBaseline, type SyncStatus } from "../cloud/autoSync";
 
 type Props = {
   uid: string;
@@ -10,10 +11,28 @@ type Props = {
 
 export default function CloudSyncPanel({ uid, loadState, saveState }: Props) {
   const [remote, setRemote] = useState<CloudSnapshot | null>(null);
-  const [busy, setBusy] = useState<"" | "refresh" | "upload" | "download" | "undo">("refresh");
+  const [busy, setBusy] = useState<"" | "refresh" | "upload" | "download" | "undo" | "auto">("refresh");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [undoAvailable, setUndoAvailable] = useState(() => recoveryIsAvailable(uid, localStorage));
+  const [autoActive, setAutoActive] = useState(() => autoSyncEnabled(uid, localStorage));
+  const [autoStatus, setAutoStatus] = useState<SyncStatus | null>(() => getAutoSyncStatus(uid, localStorage));
+
+  useEffect(() => {
+    const update = () => {
+      setAutoActive(autoSyncEnabled(uid, localStorage));
+      setAutoStatus(getAutoSyncStatus(uid, localStorage));
+    };
+    window.addEventListener("affiliate-operator:sync-status", update);
+    window.addEventListener("affiliate-operator:sync-toggle", update);
+    window.addEventListener("storage", update);
+    return () => {
+      window.removeEventListener("affiliate-operator:sync-status", update);
+      window.removeEventListener("affiliate-operator:sync-toggle", update);
+      window.removeEventListener("storage", update);
+    };
+  }, [uid]);
+
 
   useEffect(() => {
     let alive = true;
@@ -24,6 +43,28 @@ export default function CloudSyncPanel({ uid, loadState, saveState }: Props) {
     }).finally(() => { if (alive) setBusy(""); });
     return () => { alive = false; };
   }, [uid, loadState]);
+
+  const toggleAuto = async () => {
+    if (busy) return;
+    setError(""); setNotice("");
+    if (autoSyncEnabled(uid, localStorage)) {
+      disableAutoSync(uid, localStorage);
+      setAutoActive(false);
+      setNotice("Backup automático desativado. A biblioteca local continua disponível.");
+      return;
+    }
+    setBusy("auto");
+    try {
+      const latest = parseCloudSnapshot(await loadState());
+      setRemote(latest);
+      if (!window.confirm("Ativar backup automático a cada 30 segundos quando houver alterações locais? Os dados atuais precisam ser iguais aos da nuvem. Mudanças feitas em outro dispositivo NÃO serão restauradas automaticamente; exigirão sua confirmação.")) return;
+      await enableAutoSync(uid, localStorage, latest);
+      setAutoActive(true);
+      setNotice("Backup automático ativado. Se houver divergência entre aparelhos, será interrompido para revisão.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Não foi possível ativar o backup automático.");
+    } finally { setBusy(""); }
+  };
 
   const refresh = async () => {
     setBusy("refresh"); setError(""); setNotice("");
@@ -49,6 +90,7 @@ export default function CloudSyncPanel({ uid, loadState, saveState }: Props) {
         ? "ATENÇÃO: os " + latest.offers.length + " produtos e " + latest.rules.length + " rotinas que já estão no D1 serão substituídos pela biblioteca deste navegador (" + local.offers.length + " produtos, " + local.rules.length + " rotinas). Se outro dispositivo tiver mudanças novas, elas serão perdidas. Continuar?"
         : "Enviar " + local.offers.length + " ofertas e " + local.rules.length + " rotinas deste navegador para o Cloudflare D1? Esta ação NÃO publica mensagens.";
       if (!window.confirm(msg)) return;
+      disableAutoSync(uid, localStorage, "Backup automático pausado devido ao envio manual. Reative após conferir o resultado.");
       // Re-read before confirmation and send a real atomic expectedRevision to D1.
       const beforeWrite = parseCloudSnapshot(await loadState());
       if (beforeWrite.revision !== latest.revision) {
@@ -58,6 +100,7 @@ export default function CloudSyncPanel({ uid, loadState, saveState }: Props) {
       if (!result.ok || !Number.isSafeInteger(result.revision)) {
         throw new Error("A nuvem não confirmou a gravação. Não alteramos os dados locais.");
       }
+      await markManualBaseline(uid, localStorage, local, result.revision);
       setRemote({ ...local, revision: result.revision });
       setNotice("Backup salvo na nuvem (revisão " + result.revision + "). O envio de mensagens continua manual.");
     } catch (err) {
@@ -77,7 +120,9 @@ export default function CloudSyncPanel({ uid, loadState, saveState }: Props) {
       const local = readLocalCloudSnapshot(uid, localStorage);
       const msg = "Restaurar " + latest.offers.length + " ofertas e " + latest.rules.length + " rotinas da nuvem? Isso substituirá os " + local.offers.length + " produtos e " + local.rules.length + " rotinas DESTE NAVEGADOR. Um backup de recuperação será criado aqui. Rascunhos ainda não salvos serão perdidos. Confirmar?";
       if (!window.confirm(msg)) return;
+      disableAutoSync(uid, localStorage, "Backup automático pausado para restauração manual.");
       restoreCloudToLocal(uid, latest, localStorage);
+      await markManualBaseline(uid, localStorage, latest, latest.revision);
       setUndoAvailable(true);
       window.location.reload();
     } catch (err) {
@@ -89,6 +134,7 @@ export default function CloudSyncPanel({ uid, loadState, saveState }: Props) {
     if (busy || !window.confirm("Desfazer a última restauração da nuvem e voltar aos dados que estavam neste navegador antes dela? Alterações locais posteriores serão perdidas.")) return;
     setBusy("undo"); setError("");
     try {
+      disableAutoSync(uid, localStorage, "Backup automático pausado ao desfazer restauração.");
       undoCloudRestore(uid, localStorage);
       setUndoAvailable(false);
       window.location.reload();
@@ -113,11 +159,28 @@ export default function CloudSyncPanel({ uid, loadState, saveState }: Props) {
     </summary>
     <div className="space-y-4 border-t border-slate-100 px-4 pb-4 pt-4 sm:px-5 sm:pb-5">
       <p className="text-sm leading-6 text-slate-700">
-        A biblioteca ainda funciona localmente. Use estes comandos quando quiser transferir suas ofertas e agenda entre celular e computador. <strong>Não é sincronização automática:</strong> cada transferência é confirmada por você.
+        A biblioteca funciona localmente. As opções abaixo transferem ofertas e agenda de forma manual. Você também pode <strong>ativar o backup automático seguro</strong>: ele envia alterações locais somente quando a nuvem permanece na revisão conhecida e <strong>nunca baixa alterações de outro aparelho sem aprovação</strong>.
       </p>
       {remote && <p className="rounded-xl bg-indigo-50 p-3 text-sm leading-6 text-indigo-900">
         Na nuvem: <strong>{remote.offers.length} ofertas</strong> e <strong>{remote.rules.length} rotinas</strong> · revisão {remote.revision}.
       </p>}
+      <div className="rounded-xl border border-indigo-100 bg-indigo-50 p-3 sm:p-4">
+        <p className="text-sm font-bold text-indigo-950">Backup automático seguro (opcional)</p>
+        <p className="mt-1 text-xs leading-5 text-indigo-900">
+          Quando ativo, verifica o D1 periodicamente e envia apenas alterações locais sem conflitos. Se houver alterações remotas, pausa e pede revisão: não substitui suas ofertas nem rascunhos automaticamente.
+        </p>
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <button type="button" disabled={!!busy} onClick={() => void toggleAuto()}
+            className={"inline-flex min-h-11 items-center justify-center rounded-xl px-4 py-2 text-sm font-bold disabled:opacity-50 " + (autoActive ? "border border-amber-200 bg-white text-amber-900" : "bg-indigo-600 text-white hover:bg-indigo-700")}>
+            {autoActive ? "Desativar backup automático" : "Ativar backup automático"}
+          </button>
+          <span className="text-xs font-semibold text-indigo-900">{autoActive ? "Ativo · intervalo de 30 segundos" : "Desativado"}</span>
+        </div>
+        {autoStatus && <p role="status" className={"mt-2 text-xs leading-5 " + (["conflict","invalid","remote_updated"].includes(autoStatus.state) ? "text-amber-950 font-semibold" : "text-indigo-900")}>
+          {autoStatus.message}
+        </p>}
+        <p className="mt-2 text-xs text-indigo-800">Antes de ativar, confira se as ofertas deste navegador são iguais às da nuvem. Se forem diferentes, use os controles manuais abaixo e revise o resultado.</p>
+      </div>
       <div className="grid gap-2 sm:flex sm:flex-wrap">
         <button disabled={!!busy} type="button" onClick={() => void upload()}
           className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-3 text-sm font-bold text-white hover:bg-indigo-700 disabled:opacity-50">
