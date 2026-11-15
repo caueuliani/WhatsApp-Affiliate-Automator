@@ -1,3 +1,11 @@
+## PR #23 — Auditoria local de links (DRAFT empilhado sobre #22)
+
+O card expansível **Ofertas → Auditoria dos links** mostra quantas URLs precisam de revisão, sem realizar chamadas HTTP ou seguir redirecionamentos. A auditoria sinaliza link vazio, HTTP/URL insegura, domínio não reconhecido como Mercado Livre, link comum de produto e URLs **literalmente idênticas** cadastradas mais de uma vez. URLs com mesmo identificador de produto mas diferentes parâmetros são indicadas como possível mesmo produto, **não** mescladas nem regravadas. A análise é somente heurística local de formato/domínio; não confirma acesso à Central, atribuição de comissão, preço, status de campanha ou disponibilidade.
+
+Há botões separados para revisão manual no editor e **copiar exatamente o link original**, sem editar parâmetros. O resumo para reporte **não inclui URLs, títulos ou etiquetas de rastreamento**. Nenhum resultado é persistido fora do estado da interface, nenhuma consulta externa é feita e nenhuma oferta é publicada.
+
+**Dependência e ordem de merge quando autorizado:** #22 deve ser integrado primeiro; então atualizar base do #23 para main e verificar CI. #21, #22 e #23 continuam sem merge/deploy até a autorização do usuário e janela livre do Matheus. Fazer backup local antes da publicação.
+
 ## PR #22 — catálogo avançado (DRAFT, NÃO PUBLICAR)
 
 Organização manual das ofertas na aba **Ofertas → Catálogo de ofertas**:

@@ -197,3 +197,33 @@ test("catálogo: categorias, busca com acentos, filtros e ação em lote sem mud
   }));
   expect(widths.document).toBeLessThanOrEqual(widths.viewport + 1);
 });
+
+
+test("auditoria local detecta link de produto e duplicação sem consultar rede ou alterar tracking", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  const original="https://meli.la/E2Eaudit?tag=original%2Bcampaign";
+  const product="https://produto.mercadolivre.com.br/MLB-123456789-fone-_JM?source=teste";
+  const data=["Fone Sem Fio",original,"Produto Comum",product].join("\n");
+  await page.getByRole("textbox", { name: "Links ou mensagens de compartilhamento" }).fill(data);
+  await page.getByRole("button", { name: "Analisar links" }).click();
+  await page.getByRole("button", { name: "Selecionar com nome" }).click();
+  page.once("dialog", dialog => dialog.accept());
+  await page.getByRole("button", { name: "Salvar 2 selecionadas" }).click();
+  await expect.poll(async () => (await storedOffers(page)).length).toBe(2);
+
+  const audit=page.getByRole("group", { name: "Auditoria local de links de afiliado" });
+  await page.locator('details[aria-label="Auditoria local de links de afiliado"] summary').click();
+  await expect(audit.getByText("1 para revisar")).toBeVisible();
+  await expect(audit.getByText(/Link comum de produto/)).toBeVisible();
+
+  const catalog=page.getByRole("region", { name: "Catálogo de ofertas" });
+  await catalog.getByRole("button", { name: "Duplicar Fone Sem Fio" }).click();
+  await expect.poll(async () => (await storedOffers(page)).length).toBe(3);
+  await expect(audit.getByText("3 para revisar")).toBeVisible();
+  await expect(audit.getByText(/Outra oferta usa exatamente o mesmo link/).first()).toBeVisible();
+  const current=await storedOffers(page);
+  expect(current.filter(x=>x.link===original)).toHaveLength(2);
+  expect(current.find(x=>x.link===product)).toBeDefined();
+  const widths=await page.evaluate(()=>({doc:document.documentElement.scrollWidth,screen:window.innerWidth}));
+  expect(widths.doc).toBeLessThanOrEqual(widths.screen+1);
+});

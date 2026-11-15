@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import MercadoLivreImporter from "./MercadoLivreImporter";
+import AffiliateLinkAuditPanel from "./AffiliateLinkAuditPanel";
 import { createImportDraft, type MercadoLivreCandidate } from "../offers/mercadoLivre";
 import { prepareMercadoLivreBatch, type MercadoLivreReviewRow } from "../offers/mercadoLivreBatch";
 import { CalendarClock, Download, Edit3, FileUp, PackagePlus, Search, Trash2, Copy, ArrowRight, X } from "lucide-react";
@@ -178,6 +179,7 @@ export default function OfferLibrary({ uid, onUse, initialSharedText, onSharedHa
     {error && <p role="alert" className="rounded-lg bg-red-50 text-red-700 p-3 text-sm">{error}</p>}
     {notice && <p role="status" className="rounded-lg bg-emerald-50 text-emerald-800 p-3 text-sm">{notice}</p>}
     <MercadoLivreImporter existingLinks={offers.map(offer => offer.link)} initialSharedText={initialSharedText} onSharedHandled={onSharedHandled} onReview={reviewImported} onEditExisting={editImported} onBatchSave={saveBatch}/>
+    <AffiliateLinkAuditPanel offers={offers} onEdit={edit}/>
     <form id="offer-editor" onSubmit={save} className="rounded-2xl border bg-white shadow-sm p-4 space-y-4 sm:p-5">
       <div className="flex items-center gap-2 justify-between">
         <h3 className="font-semibold text-lg flex items-center gap-2"><PackagePlus size={19}/> {editing ? "Editar oferta" : "Cadastrar oferta"}</h3>
