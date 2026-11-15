@@ -117,7 +117,7 @@ export default function MatheusQaPanel({ uid }: Props) {
       </div>
       {storageError && <p role="alert" className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">{storageError}</p>}
       <div className="space-y-3">
-        {groups.map((group, index) => {
+        {groups.map(group => {
           const done = group.cases.filter(test => progress[test.id] === "passed").length;
           return <details key={group.name}  className="overflow-hidden rounded-xl border border-slate-200 bg-white">
             <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 bg-slate-50 px-3 py-3 text-sm font-bold text-slate-900 sm:px-4">

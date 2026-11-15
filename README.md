@@ -1,3 +1,11 @@
+## To Do do Matheus — homologação mobile-first (PR #19)
+
+Na **Visão geral**, o card **To Do do Matheus** apresenta 45 testes organizados por prioridade: P0 (Mercado Livre básico e importação em lote), P1 (PWA Android, Cloudflare D1 e WhatsApp), P2 (responsividade e validação de segurança). Cada teste tem objetivo/resultado esperado e status \`Pendente / OK / Falhou / Bloqueado\`. O progresso fica no \`localStorage\` por conta Google e aparelho, **não sincroniza automaticamente** com D1; nenhum dado de afiliado é exportado ao copiar/baixar o relatório.
+
+**Checklist completo no GitHub:** https://github.com/caueuliani/WhatsApp-Affiliate-Automator/issues/17
+
+O relatório exportado inclui apenas os identificadores e títulos dos testes, estados e totais. Nunca cole QR, número pessoal, códigos WhatsApp, tokens ou links rastreados em issues públicas. O botão **Zerar status** só limpa o checklist local, não as ofertas ou agenda.
+
 ## Mercado Livre: importar arquivos CSV/TXT preparados pelo usuário (PR #18)
 
 Em **Ofertas → Importar links → Selecionar arquivo**, o operador pode escolher arquivos locais \`.csv\` ou \`.txt\` com até 12 mil caracteres e até 20 links por importação. \`TXT\` aceita a mesma colagem de URLs/mensagens; \`CSV\` aceita colunas \`produto;link\` (também vírgula e alguns nomes de coluna equivalentes). Acesse **Baixar modelo CSV** na própria interface. O parser roda localmente, não envia o arquivo ao servidor. Links fora dos domínios Mercado Livre são rejeitados, duplicatas do arquivo são agrupadas, e o operador revisa nome/seleção antes de salvar. Nenhum preço do arquivo é tratado como verificado; links originais e parâmetros de comissão são mantidos.

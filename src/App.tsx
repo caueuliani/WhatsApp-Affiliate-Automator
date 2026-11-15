@@ -9,6 +9,7 @@ import { auth, loginWithGoogle, logout } from "./firebase";
 import { describeGoogleLoginError } from "./auth/loginErrors";
 import OfferLibrary from "./components/OfferLibrary";
 import CloudSyncPanel from "./components/CloudSyncPanel";
+import MatheusQaPanel from "./components/MatheusQaPanel";
 import type { CloudSaveInput } from "./cloud/state";
 import { consumeIncomingShare } from "./pwa/incomingShare";
 import SchedulePlanner from "./components/SchedulePlanner";
@@ -342,6 +343,7 @@ export default function App() {
                     </div>
                   </div>
                 </section>
+                <MatheusQaPanel key={user.uid} uid={user.uid}/>
                 <section className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4" aria-label="Resumo local das ofertas">
                   <StatTile label="Ofertas salvas" count={summary.total} description="Neste navegador" icon={Package}/>
                   <StatTile label="Revisões pendentes" count={summary.due} description="Datas planejadas já atingidas" icon={Clock3}/>
