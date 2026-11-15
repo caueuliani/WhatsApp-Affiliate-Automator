@@ -97,7 +97,7 @@ export default function MercadoLivreImporter({ existingLinks, initialSharedText,
         title: review[candidate.link]?.title ?? candidate.titleSuggestion,
       }));
       const count = onBatchSave(rows);
-      setReview(previous => Object.fromEntries(Object.entries(previous).map(([link, item]) => [link, { ...item, selected: false }])));
+      setReview(Object.fromEntries(candidates.map(candidate => [candidate.link, { selected: false, title: review[candidate.link]?.title ?? candidate.titleSuggestion }])));
       setNotice(count + (count === 1 ? " oferta salva na biblioteca." : " ofertas salvas na biblioteca.") + " Os links foram preservados; confira os dados antes de publicar.");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Não foi possível salvar o lote.");
