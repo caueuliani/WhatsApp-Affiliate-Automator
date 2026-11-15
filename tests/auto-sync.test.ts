@@ -78,7 +78,7 @@ test("remote-only update pauses and never downloads over local draft", async () 
   const result=await syncOneSafeCycle("u1",store,{load:async()=>newer,save:async()=>{saves++;return {ok:true,revision:3};}});
   assert.equal(result?.state,"remote_updated");assert.equal(saves,0);
   assert.equal(autoSyncEnabled("u1",store),false);
-  assert.match(store.getItem(storageKey("u1"))||"","item1");
+  assert.match(store.getItem(storageKey("u1"))||"",/item1/);
   assert.equal(getAutoSyncStatus("u1",store)?.state,"remote_updated");
 });
 
