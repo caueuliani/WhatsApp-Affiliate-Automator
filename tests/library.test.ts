@@ -45,3 +45,13 @@ test("salva metadados de campanha sem reescrever a URL de afiliado", () => {
   assert.deepEqual(parseLibrary(exportLibrary([draft])), [draft]);
   assert.throws(() => createDraft({ ...base, trackingLabel: "x".repeat(61) }, "bad"));
 });
+
+test("categorias são opcionais nos backups antigos e não mudam os links", () => {
+  const old = createDraft(base, "before-categories");
+  delete old.category;
+  assert.equal(parseLibrary(exportLibrary([old]))[0].category,undefined);
+  const categorized = createDraft({...base,category:"games"},"categorized");
+  assert.equal(categorized.category,"games");
+  assert.equal(categorized.link,old.link);
+  assert.deepEqual(parseLibrary(exportLibrary([categorized])),[categorized]);
+});

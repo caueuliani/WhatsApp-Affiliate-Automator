@@ -1,3 +1,15 @@
+## PR #22 — catálogo avançado (DRAFT, NÃO PUBLICAR)
+
+Organização manual das ofertas na aba **Ofertas → Catálogo de ofertas**:
+- Categorias **Tecnologia**, **Games**, **Casa e cozinha**, **Moda**, **Beleza**, **Esportes** e **Outros**; novas ofertas/importações iniciam em "Outros", sem inferir informações do anúncio.
+- Busca por nome, descrição, etiqueta de campanha ou URL, sem diferenciar acentos/maiúsculas.
+- Filtros por **categoria**, **programa de afiliados**, **revisão vencida/futura/sem data** e ordenação por revisão, atualização, nome e preço informado (sem preço fica no final).
+- Marcação de ofertas visíveis e categorização manual em lote com confirmação; **não exclui**, publica ou modifica links/etiquetas de rastreamento. Seleções fora dos filtros não são modificadas.
+- Metadado opcional \`category\` no formato atual de oferta/backup v1; backups antigos sem categoria continuam válidos e são exibidos como "Outros". O D1 já armazena o JSON completo da oferta, então não há migração nova.
+- Testes unitários para filtros e integridade de tracking/backup e cenário Playwright no viewport 375px.
+
+**Publicação suspensa:** PR #21 e PR #22 não podem ser mesclados ou publicados enquanto o Matheus estiver trabalhando, sem autorização explícita para retomada. É necessário combinar uma janela e exportar backup antes de habilitar funcionalidades novas.
+
 ## Browser E2E no Chromium — PR #20
 
 O workflow **CI** também executa o job **Chromium UI E2E (isolated fixture)** com Playwright no GitHub Actions. Testes exercitam os componentes reais da biblioteca, importador e tela de backup em um navegador real (link individual, parâmetros de afiliado, duplicatas, lotes, CSV, rejeição de domínio falso, restauração e layout mobile). Não há dependência de serviços pagos.
