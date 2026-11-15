@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import MercadoLivreImporter from "./MercadoLivreImporter";
 import { createImportDraft, type MercadoLivreCandidate } from "../offers/mercadoLivre";
+import { prepareMercadoLivreBatch, type MercadoLivreReviewRow } from "../offers/mercadoLivreBatch";
 import { CalendarClock, Download, Edit3, FileUp, PackagePlus, Search, Trash2, Copy, ArrowRight, X } from "lucide-react";
 import { createDraft, exportLibrary, MAX_OFFERS, parseLibrary, scheduledState, storageKey, type DraftInput, type OfferDraft } from "../offers/library";
 
@@ -75,6 +76,14 @@ export default function OfferLibrary({ uid, onUse, initialSharedText, onSharedHa
     document.getElementById("offer-editor")?.scrollIntoView({ behavior: "smooth", block: "start" });
     requestAnimationFrame(() => document.getElementById("offer-title")?.focus({ preventScroll: true }));
   };
+  const saveBatch = (rows: MercadoLivreReviewRow[]): number => {
+    // All selected rows are validated before a single state update.
+    const created = prepareMercadoLivreBatch(rows, offers, () => crypto.randomUUID());
+    setOffers(previous => [...created, ...previous]);
+    setError("");
+    setNotice(created.length + (created.length === 1 ? " oferta adicionada." : " ofertas adicionadas.") + " Faça backup no D1 para acessar em outro dispositivo.");
+    return created.length;
+  };
   const editImported = (link: string) => {
     const offer = offers.find(item => item.link === link);
     if (offer) edit(offer);
@@ -132,7 +141,7 @@ export default function OfferLibrary({ uid, onUse, initialSharedText, onSharedHa
     </div>
     {error && <p role="alert" className="rounded-lg bg-red-50 text-red-700 p-3 text-sm">{error}</p>}
     {notice && <p role="status" className="rounded-lg bg-emerald-50 text-emerald-800 p-3 text-sm">{notice}</p>}
-    <MercadoLivreImporter existingLinks={offers.map(offer => offer.link)} initialSharedText={initialSharedText} onSharedHandled={onSharedHandled} onReview={reviewImported} onEditExisting={editImported}/>
+    <MercadoLivreImporter existingLinks={offers.map(offer => offer.link)} initialSharedText={initialSharedText} onSharedHandled={onSharedHandled} onReview={reviewImported} onEditExisting={editImported} onBatchSave={saveBatch}/>
     <form id="offer-editor" onSubmit={save} className="rounded-2xl border bg-white shadow-sm p-4 space-y-4 sm:p-5">
       <div className="flex items-center gap-2 justify-between">
         <h3 className="font-semibold text-lg flex items-center gap-2"><PackagePlus size={19}/> {editing ? "Editar oferta" : "Cadastrar oferta"}</h3>

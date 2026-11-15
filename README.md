@@ -1,3 +1,7 @@
+## Mercado Livre — revisão e salvamento em lote (PR #16)
+
+Em **Ofertas → Importar links da Central de Afiliados**, o operador pode analisar até 20 links em uma mensagem, conferir/editar os nomes, selecionar os que deseja e tocar em **Salvar selecionadas**. A função salva todas as ofertas aprovadas numa única operação local, sem modificar a URL original do afiliado. Nomes não identificados pelo texto de compartilhamento exigem preenchimento manual, links já salvos são desabilitados e o limite global da biblioteca continua 100. A importação não consulta preços, descontos, disponibilidade nem comissões, não acessa a conta do Mercado Livre e não dispara publicações. Depois de importar, use o backup D1 manual na mesma tela para transferir dados entre dispositivos.
+
 
 ## Concorrência no D1 — Compare-and-swap (PR #15)
 
