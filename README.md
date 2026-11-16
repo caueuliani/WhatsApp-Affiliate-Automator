@@ -1,3 +1,34 @@
+## Candidate de integração — #21 + #22 + #23 (somente teste)
+
+Esta branch prévia combina **snapshots de código** dos PRs 21, 22 e 23 para validar integração antes de qualquer publicação. **NÃO é a main, não há deploy e nenhum dado de produção é consultado ou escrito.** As alterações de README são combinadas preservando a documentação das duas branches. Quando o Matheus liberar, os PRs originais devem ser integrados sequencialmente e validados novamente; não usar a candidate para publicar diretamente.
+
+## PR #21 — Backup automático seguro (NÃO PUBLICADO)
+
+A implementação existe somente numa branch/PR separado, desativada por padrão. O operador precisa primeiro confirmar explicitamente que biblioteca e agenda locais correspondem à última revisão do Cloudflare D1. Se forem diferentes, precisa usar os botões manuais existentes para enviar ou restaurar dados antes de ativar.
+
+Após habilitação, a cada 30 segundos ou retomada de foco: (1) lê a biblioteca local, (2) compara sua assinatura SHA-256 e a revisão do D1 à base conhecida, e (3) **envia mudanças locais apenas se a nuvem não mudou**, usando controle transacional de versão (expectedRevision). Mudanças remotas são detectadas, mas nunca restauradas automaticamente: o modo pausa para revisão, evitando descartar formulários não salvos. Divergências simultâneas, bibliotecas esvaziadas, regras inválidas e conflitos CAS também interrompem uploads; falhas de rede preservam dados locais.
+
+**Limite consciente:** backup automático local → D1 e detecção de atualização remota, **não** sincronização bidirecional total. Não altera banco D1, migrações, Worker, secrets ou WhatsApp. Testes automatizados cobrem conflitos, preservação de links, opt-in e falhas.
+
+**Publicação explicitamente suspensa.** Não mesclar em main, não disparar Render/Cloudflare e não testar escrevendo na conta do Matheus até nova autorização. Antes de futura implantação, exportar backup e verificar que Matheus não esteja editando.
+
+## Browser E2E no Chromium — PR #20
+
+O workflow **CI** também executa o job **Chromium UI E2E (isolated fixture)** com Playwright no GitHub Actions. Testes exercitam os componentes reais da biblioteca, importador e tela de backup em um navegador real (link individual, parâmetros de afiliado, duplicatas, lotes, CSV, rejeição de domínio falso, restauração e layout mobile). Não há dependência de serviços pagos.
+
+Os testes iniciam um servidor Vite local com a fixture \`e2e/fixture.html\`. Ela usa um **UID fictício** e armazenamento local para simular a API do D1; não tem acesso ao Firebase, conta do Matheus, WhatsApp ou Cloudflare real. A fixture não é publicada com o \`vite build\` (somente \`index.html\` vai ao \`dist\`). Os testes **não substituem** a homologação Android, autenticação Google, WhatsApp/QR, D1 real ou autorização de comissão.
+
+Para executar localmente, veja \`e2e/README.md\`. Se o job falhar, o GitHub Actions salva screenshot/trace por 7 dias para diagnóstico.
+
+## To Do do Matheus — homologação mobile-first (PR #19)
+
+Na **Visão geral**, o card **To Do do Matheus** apresenta 45 testes organizados por prioridade: P0 (Mercado Livre básico e importação em lote), P1 (PWA Android, Cloudflare D1 e WhatsApp), P2 (responsividade e validação de segurança). Cada teste tem objetivo/resultado esperado e status \`Pendente / OK / Falhou / Bloqueado\`. O progresso fica no \`localStorage\` por conta Google e aparelho, **não sincroniza automaticamente** com D1; nenhum dado de afiliado é exportado ao copiar/baixar o relatório.
+
+**Checklist completo no GitHub:** https://github.com/caueuliani/WhatsApp-Affiliate-Automator/issues/17
+
+O relatório exportado inclui apenas os identificadores e títulos dos testes, estados e totais. Nunca cole QR, número pessoal, códigos WhatsApp, tokens ou links rastreados em issues públicas. O botão **Zerar status** só limpa o checklist local, não as ofertas ou agenda.
+
+
 ## PR #23 — Auditoria local de links (DRAFT empilhado sobre #22)
 
 O card expansível **Ofertas → Auditoria dos links** mostra quantas URLs precisam de revisão, sem realizar chamadas HTTP ou seguir redirecionamentos. A auditoria sinaliza link vazio, HTTP/URL insegura, domínio não reconhecido como Mercado Livre, link comum de produto e URLs **literalmente idênticas** cadastradas mais de uma vez. URLs com mesmo identificador de produto mas diferentes parâmetros são indicadas como possível mesmo produto, **não** mescladas nem regravadas. A análise é somente heurística local de formato/domínio; não confirma acesso à Central, atribuição de comissão, preço, status de campanha ou disponibilidade.
