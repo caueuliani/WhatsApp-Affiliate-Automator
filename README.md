@@ -1,3 +1,11 @@
+## PR #23 — Auditoria local de links (base atualizada; deploy pendente)
+
+O card expansível **Ofertas → Auditoria dos links** mostra quantas URLs precisam de revisão, sem realizar chamadas HTTP ou seguir redirecionamentos. A auditoria sinaliza link vazio, HTTP/URL insegura, domínio não reconhecido como Mercado Livre, link comum de produto e URLs **literalmente idênticas** cadastradas mais de uma vez. URLs com mesmo identificador de produto mas diferentes parâmetros são indicadas como possível mesmo produto, **não** mescladas nem regravadas. A análise é somente heurística local de formato/domínio; não confirma acesso à Central, atribuição de comissão, preço, status de campanha ou disponibilidade.
+
+Há botões separados para revisão manual no editor e **copiar exatamente o link original**, sem editar parâmetros. O resumo para reporte **não inclui URLs, títulos ou etiquetas de rastreamento**. Nenhum resultado é persistido fora do estado da interface, nenhuma consulta externa é feita e nenhuma oferta é publicada.
+
+**Base:** #22 já integrado. Este PR inclui só a auditoria. Deploy de produção permanece pendente de operação separada; guardar backup antes de implantar.
+
 ## PR #22 — Catálogo avançado (mergeado; deploy pendente)
 
 Organização manual das ofertas na aba **Ofertas → Catálogo de ofertas**:
