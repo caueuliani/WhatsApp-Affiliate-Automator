@@ -1,3 +1,13 @@
+## PR #21 — Backup automático seguro (NÃO PUBLICADO)
+
+A implementação existe somente numa branch/PR separado, desativada por padrão. O operador precisa primeiro confirmar explicitamente que biblioteca e agenda locais correspondem à última revisão do Cloudflare D1. Se forem diferentes, precisa usar os botões manuais existentes para enviar ou restaurar dados antes de ativar.
+
+Após habilitação, a cada 30 segundos ou retomada de foco: (1) lê a biblioteca local, (2) compara sua assinatura SHA-256 e a revisão do D1 à base conhecida, e (3) **envia mudanças locais apenas se a nuvem não mudou**, usando controle transacional de versão (expectedRevision). Mudanças remotas são detectadas, mas nunca restauradas automaticamente: o modo pausa para revisão, evitando descartar formulários não salvos. Divergências simultâneas, bibliotecas esvaziadas, regras inválidas e conflitos CAS também interrompem uploads; falhas de rede preservam dados locais.
+
+**Limite consciente:** backup automático local → D1 e detecção de atualização remota, **não** sincronização bidirecional total. Não altera banco D1, migrações, Worker, secrets ou WhatsApp. Testes automatizados cobrem conflitos, preservação de links, opt-in e falhas.
+
+**Publicação explicitamente suspensa.** Não mesclar em main, não disparar Render/Cloudflare e não testar escrevendo na conta do Matheus até nova autorização. Antes de futura implantação, exportar backup e verificar que Matheus não esteja editando.
+
 ## Browser E2E no Chromium — PR #20
 
 O workflow **CI** também executa o job **Chromium UI E2E (isolated fixture)** com Playwright no GitHub Actions. Testes exercitam os componentes reais da biblioteca, importador e tela de backup em um navegador real (link individual, parâmetros de afiliado, duplicatas, lotes, CSV, rejeição de domínio falso, restauração e layout mobile). Não há dependência de serviços pagos.
