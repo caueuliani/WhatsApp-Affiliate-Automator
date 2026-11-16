@@ -1,4 +1,4 @@
-## PR #22 — catálogo avançado (DRAFT, NÃO PUBLICAR)
+## PR #22 — Catálogo avançado (mergeado; deploy pendente)
 
 Organização manual das ofertas na aba **Ofertas → Catálogo de ofertas**:
 - Categorias **Tecnologia**, **Games**, **Casa e cozinha**, **Moda**, **Beleza**, **Esportes** e **Outros**; novas ofertas/importações iniciam em "Outros", sem inferir informações do anúncio.
@@ -8,7 +8,17 @@ Organização manual das ofertas na aba **Ofertas → Catálogo de ofertas**:
 - Metadado opcional \`category\` no formato atual de oferta/backup v1; backups antigos sem categoria continuam válidos e são exibidos como "Outros". O D1 já armazena o JSON completo da oferta, então não há migração nova.
 - Testes unitários para filtros e integridade de tracking/backup e cenário Playwright no viewport 375px.
 
-**Publicação suspensa:** PR #21 e PR #22 não podem ser mesclados ou publicados enquanto o Matheus estiver trabalhando, sem autorização explícita para retomada. É necessário combinar uma janela e exportar backup antes de habilitar funcionalidades novas.
+**Deploy pendente:** antes da publicação, salvar um backup dos dados usados pelo Matheus.
+
+## PR #21 — Backup automático seguro (mergeado; deploy pendente)
+
+A implementação existe somente numa branch/PR separado, desativada por padrão. O operador precisa primeiro confirmar explicitamente que biblioteca e agenda locais correspondem à última revisão do Cloudflare D1. Se forem diferentes, precisa usar os botões manuais existentes para enviar ou restaurar dados antes de ativar.
+
+Após habilitação, a cada 30 segundos ou retomada de foco: (1) lê a biblioteca local, (2) compara sua assinatura SHA-256 e a revisão do D1 à base conhecida, e (3) **envia mudanças locais apenas se a nuvem não mudou**, usando controle transacional de versão (expectedRevision). Mudanças remotas são detectadas, mas nunca restauradas automaticamente: o modo pausa para revisão, evitando descartar formulários não salvos. Divergências simultâneas, bibliotecas esvaziadas, regras inválidas e conflitos CAS também interrompem uploads; falhas de rede preservam dados locais.
+
+**Limite consciente:** backup automático local → D1 e detecção de atualização remota, **não** sincronização bidirecional total. Não altera banco D1, migrações, Worker, secrets ou WhatsApp. Testes automatizados cobrem conflitos, preservação de links, opt-in e falhas.
+
+**Deploy ainda não executado.** Antes de ativar o backup automático, confirmar que os dados do navegador e do D1 estão alinhados e preservar backup.
 
 ## Browser E2E no Chromium — PR #20
 

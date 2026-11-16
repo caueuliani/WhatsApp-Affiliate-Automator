@@ -11,6 +11,7 @@ import OfferLibrary from "./components/OfferLibrary";
 import CloudSyncPanel from "./components/CloudSyncPanel";
 import MatheusQaPanel from "./components/MatheusQaPanel";
 import type { CloudSaveInput } from "./cloud/state";
+import { AUTO_SYNC_INTERVAL_MS, autoSyncEnabled, syncOneSafeCycle } from "./cloud/autoSync";
 import { consumeIncomingShare } from "./pwa/incomingShare";
 import SchedulePlanner from "./components/SchedulePlanner";
 import WhatsAppConnection from "./components/WhatsAppConnection";
@@ -197,6 +198,34 @@ export default function App() {
   // Stable callbacks prevent repeated Cloudflare requests during React renders.
   const loadCloudState = useCallback(() => api<unknown>("/api/planner/state"), []);
   const saveCloudState = useCallback((state: CloudSaveInput) => api<{ ok: boolean; revision: number }>("/api/planner/state", "PUT", state), []);
+
+  useEffect(() => {
+    if (!user || access !== "authorized") return;
+    let alive = true;
+    let running = false;
+    const uid = user.uid;
+    const check = async () => {
+      if (!alive || running || !autoSyncEnabled(uid, localStorage)) return;
+      running = true;
+      try { await syncOneSafeCycle(uid, localStorage, { load: loadCloudState, save: saveCloudState }); }
+      catch { /* Local storage errors must not affect manual editing or posting. */ }
+      finally { running = false; }
+    };
+    void check();
+    const interval = window.setInterval(() => { void check(); }, AUTO_SYNC_INTERVAL_MS);
+    const onFocus = () => { void check(); };
+    const onVisibility = () => { if (document.visibilityState === "visible") void check(); };
+    window.addEventListener("focus", onFocus);
+    window.addEventListener("affiliate-operator:sync-toggle", onFocus);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      alive = false;
+      window.clearInterval(interval);
+      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("affiliate-operator:sync-toggle", onFocus);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [user, access, loadCloudState, saveCloudState]);
 
   const requestPairingCode = async (phoneNumber: string): Promise<string> => {
     const result = await api<{ code: string }>("/api/pairing-code", "POST", { phoneNumber });
