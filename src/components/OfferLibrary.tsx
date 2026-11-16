@@ -3,10 +3,11 @@ import MercadoLivreImporter from "./MercadoLivreImporter";
 import { createImportDraft, type MercadoLivreCandidate } from "../offers/mercadoLivre";
 import { prepareMercadoLivreBatch, type MercadoLivreReviewRow } from "../offers/mercadoLivreBatch";
 import { CalendarClock, Download, Edit3, FileUp, PackagePlus, Search, Trash2, Copy, ArrowRight, X } from "lucide-react";
-import { createDraft, exportLibrary, MAX_OFFERS, parseLibrary, scheduledState, storageKey, type DraftInput, type OfferDraft } from "../offers/library";
+import { createDraft, exportLibrary, MAX_OFFERS, OFFER_CATEGORIES, parseLibrary, scheduledState, storageKey, type DraftInput, type OfferDraft, type OfferCategory } from "../offers/library";
+import { categorizeOffers, filterCatalog, type CatalogSort, type CatalogStatus, type CatalogCategory, type CatalogProgram } from "../offers/catalog";
 
 type Props = { uid: string; onUse: (draft: OfferDraft) => void; initialSharedText?: string; onSharedHandled?: () => void };
-const empty: DraftInput = { title: "", message: "", link: "", price: "", affiliateProgram: "other", trackingLabel: "", plannedAt: "" };
+const empty: DraftInput = { title: "", message: "", link: "", price: "", affiliateProgram: "other", category: "outros", trackingLabel: "", plannedAt: "" };
 function localDateTime(iso: string | null): string {
   if (!iso) return "";
   const d = new Date(iso);
@@ -14,7 +15,7 @@ function localDateTime(iso: string | null): string {
   return adjusted.toISOString().slice(0, 16);
 }
 function fromDraft(offer: OfferDraft): DraftInput {
-  return { title: offer.title, message: offer.message, link: offer.link, price: offer.priceCents === null ? "" : String(offer.priceCents / 100), affiliateProgram: offer.affiliateProgram || "other", trackingLabel: offer.trackingLabel || "", plannedAt: localDateTime(offer.plannedAt) };
+  return { title: offer.title, message: offer.message, link: offer.link, price: offer.priceCents === null ? "" : String(offer.priceCents / 100),  affiliateProgram: offer.affiliateProgram || "other", category: offer.category || "outros", trackingLabel: offer.trackingLabel || "", plannedAt: localDateTime(offer.plannedAt) };
 }
 const currency = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -26,7 +27,12 @@ export default function OfferLibrary({ uid, onUse, initialSharedText, onSharedHa
   });
   const [form, setForm] = useState<DraftInput>(empty);
   const [editing, setEditing] = useState<string | null>(null);
-  const [filter, setFilter] = useState<"all" | "due" | "upcoming">("all");
+  const [filter, setFilter] = useState<CatalogStatus>("all");
+  const [categoryFilter, setCategoryFilter] = useState<CatalogCategory>("all");
+  const [programFilter, setProgramFilter] = useState<CatalogProgram>("all");
+  const [sort, setSort] = useState<CatalogSort>("planned");
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkCategory, setBulkCategory] = useState<OfferCategory>("tecnologia");
   const [query, setQuery] = useState("");
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
@@ -36,9 +42,38 @@ export default function OfferLibrary({ uid, onUse, initialSharedText, onSharedHa
     catch { setError("O navegador não conseguiu salvar as ofertas. Exporte um backup."); }
   }, [offers, key]);
 
-  const visible = useMemo(() => offers
-    .filter(offer => (filter === "all" || scheduledState(offer) === filter) && (offer.title + " " + offer.message).toLowerCase().includes(query.toLowerCase()))
-    .sort((a, b) => (a.plannedAt || "9999").localeCompare(b.plannedAt || "9999") || b.updatedAt.localeCompare(a.updatedAt)), [offers, filter, query]);
+  const visible = useMemo(() => filterCatalog(offers, {
+    query, status: filter, program: programFilter, category: categoryFilter, sort,
+  }), [offers, query, filter, programFilter, categoryFilter, sort]);
+  const selectedVisible = useMemo(() => visible.filter(offer => selectedIds.includes(offer.id)), [visible, selectedIds]);
+  const allVisibleSelected = visible.length > 0 && selectedVisible.length === visible.length;
+  const hasFilters = !!query.trim() || filter !== "all" || categoryFilter !== "all" || programFilter !== "all" || sort !== "planned";
+
+  useEffect(() => { setSelectedIds([]); }, [query, filter, categoryFilter, programFilter, sort]);
+  useEffect(() => { setSelectedIds(previous => previous.filter(id => offers.some(offer => offer.id === id))); }, [offers]);
+
+  const toggleSelection = (id: string) => setSelectedIds(previous =>
+    previous.includes(id) ? previous.filter(item => item !== id) : [...previous, id]);
+  const toggleVisible = () => setSelectedIds(previous => allVisibleSelected
+    ? previous.filter(id => !visible.some(offer => offer.id === id))
+    : [...new Set([...previous, ...visible.map(offer => offer.id)])]);
+  const assignCategory = () => {
+    if (!selectedVisible.length) { setError("Selecione ofertas visíveis antes de aplicar uma categoria."); return; }
+    const label = OFFER_CATEGORIES.find(item => item.value === bulkCategory)?.label || bulkCategory;
+    if (!window.confirm("Aplicar a categoria " + label + " a " + selectedVisible.length + " ofertas selecionadas? URLs, preços e mensagens serão preservados.")) return;
+    try {
+      const next = categorizeOffers(offers, new Set(selectedVisible.map(offer => offer.id)), bulkCategory);
+      setOffers(next);
+      setSelectedIds([]);
+      setError("");
+      setNotice("Categoria " + label + " aplicada a " + selectedVisible.length + " ofertas. Os links de afiliado não foram alterados.");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Não foi possível organizar o lote.");
+    }
+  };
+  const clearFilters = () => {
+    setQuery(""); setFilter("all"); setCategoryFilter("all"); setProgramFilter("all"); setSort("planned"); setSelectedIds([]);
+  };
 
   const update = (field: keyof DraftInput, value: string) => setForm(previous => ({ ...previous, [field]: value }));
   const save = (event: React.FormEvent) => {
@@ -90,6 +125,7 @@ export default function OfferLibrary({ uid, onUse, initialSharedText, onSharedHa
   };
   const remove = (offer: OfferDraft) => {
     if (!window.confirm('Excluir a oferta "' + offer.title + '"?')) return;
+    setSelectedIds(previous => previous.filter(id => id !== offer.id));
     setOffers(previous => previous.filter(item => item.id !== offer.id));
     if (editing === offer.id) { setEditing(null); setForm(empty); }
     setNotice("Oferta excluída.");
@@ -157,13 +193,18 @@ export default function OfferLibrary({ uid, onUse, initialSharedText, onSharedHa
         <input maxLength={2048} type="url" value={form.link} onChange={e => update("link", e.target.value)} placeholder="https://..." className="w-full rounded-lg border p-3"/>
       </label>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <label className="block space-y-1"><span className="text-sm font-medium">Programa de afiliados</span>
           <select value={form.affiliateProgram || "other"} onChange={e => update("affiliateProgram", e.target.value)} className="w-full rounded-lg border p-3 bg-white">
             <option value="mercado_livre">Mercado Livre</option>
             <option value="shopee">Shopee</option>
             <option value="amazon">Amazon</option>
             <option value="other">Outro / não informado</option>
+          </select>
+        </label>
+        <label className="block space-y-1"><span className="text-sm font-medium">Categoria da oferta</span>
+          <select aria-label="Categoria da oferta" value={form.category || "outros"} onChange={e => update("category", e.target.value)} className="w-full rounded-lg border p-3 bg-white">
+            {OFFER_CATEGORIES.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
           </select>
         </label>
         <label className="block space-y-1"><span className="text-sm font-medium">Etiqueta de campanha (opcional)</span>
@@ -182,25 +223,80 @@ export default function OfferLibrary({ uid, onUse, initialSharedText, onSharedHa
       <p className="text-xs text-slate-500">Preço e horário são internos; só o texto e o link entram na mensagem. Confirme preço e disponibilidade antes de divulgar.</p>
       <button type="submit" className="w-full rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white py-3 px-4 font-semibold sm:w-auto">{editing ? "Salvar alterações" : "Adicionar à biblioteca"}</button>
     </form>
-    <div className="rounded-2xl bg-white border p-4 space-y-3 sm:p-5">
+    <div role="region" aria-label="Catálogo de ofertas" className="rounded-2xl bg-white border p-4 space-y-3 sm:p-5">
       <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h3 className="font-semibold text-lg">Ofertas salvas</h3>
         <div className="inline-flex w-full overflow-hidden rounded-lg border text-sm sm:w-auto">
           <button type="button" aria-pressed={filter === "all"} onClick={() => setFilter("all")} className={filter === "all" ? "flex-1 bg-indigo-600 text-white px-3 py-2 sm:flex-none" : "flex-1 px-3 py-2 sm:flex-none"}>Todas</button>
           <button type="button" aria-pressed={filter === "due"} onClick={() => setFilter("due")} className={filter === "due" ? "flex-1 bg-indigo-600 text-white px-3 py-2 sm:flex-none" : "flex-1 px-3 py-2 sm:flex-none"}>Pendentes</button>
           <button type="button" aria-pressed={filter === "upcoming"} onClick={() => setFilter("upcoming")} className={filter === "upcoming" ? "flex-1 bg-indigo-600 text-white px-3 py-2 sm:flex-none" : "flex-1 px-3 py-2 sm:flex-none"}>Futuras</button>
+          <button type="button" aria-pressed={filter === "unscheduled"} onClick={() => setFilter("unscheduled")} className={filter === "unscheduled" ? "flex-1 bg-indigo-600 text-white px-3 py-2 sm:flex-none" : "flex-1 px-3 py-2 sm:flex-none"}>Sem data</button>
         </div>
       </div>
-      <label className="flex items-center gap-2 rounded-lg border px-3"><Search size={18} className="text-slate-400"/><input aria-label="Buscar ofertas" value={query} onChange={e => setQuery(e.target.value)} placeholder="Buscar produto..." className="w-full py-3 outline-none"/></label>
-      {visible.length === 0 && <p className="text-sm text-slate-500 py-5">Nenhuma oferta encontrada. Cadastre a primeira acima.</p>}
+      <label className="flex items-center gap-2 rounded-lg border px-3"><Search size={18} className="text-slate-400"/><input aria-label="Buscar ofertas" value={query} onChange={e => setQuery(e.target.value)} placeholder="Buscar produto, campanha ou link..." className="w-full min-h-11 py-3 outline-none"/></label>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+        <label className="space-y-1 text-xs font-semibold text-slate-600">Programa de afiliados
+          <select aria-label="Filtrar por programa" value={programFilter} onChange={e => setProgramFilter(e.target.value as CatalogProgram)} className="field-control min-h-11 w-full bg-white text-sm">
+            <option value="all">Todos os programas</option>
+            <option value="mercado_livre">Mercado Livre</option>
+            <option value="shopee">Shopee</option>
+            <option value="amazon">Amazon</option>
+            <option value="other">Outro / não informado</option>
+          </select>
+        </label>
+        <label className="space-y-1 text-xs font-semibold text-slate-600">Categoria
+          <select aria-label="Filtrar por categoria" value={categoryFilter} onChange={e => setCategoryFilter(e.target.value as CatalogCategory)} className="field-control min-h-11 w-full bg-white text-sm">
+            <option value="all">Todas as categorias</option>
+            {OFFER_CATEGORIES.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+          </select>
+        </label>
+        <label className="space-y-1 text-xs font-semibold text-slate-600">Ordenar
+          <select aria-label="Ordenar ofertas" value={sort} onChange={e => setSort(e.target.value as CatalogSort)} className="field-control min-h-11 w-full bg-white text-sm">
+            <option value="planned">Próximas revisões</option>
+            <option value="recent">Atualizadas recentemente</option>
+            <option value="title">Nome de A a Z</option>
+            <option value="price_low">Menor preço informado</option>
+            <option value="price_high">Maior preço informado</option>
+          </select>
+        </label>
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs font-semibold text-slate-600" role="status">{visible.length} de {offers.length} ofertas exibidas</p>
+        {hasFilters && <button type="button" className="min-h-11 rounded-lg px-3 text-xs font-bold text-indigo-700 hover:bg-indigo-50" onClick={clearFilters}>Limpar filtros</button>}
+      </div>
+      {visible.length > 0 && <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <button type="button" onClick={toggleVisible} className="min-h-11 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+            {allVisibleSelected ? "Desmarcar visíveis" : "Selecionar visíveis"}
+          </button>
+          <span className="text-xs font-semibold text-slate-600">{selectedVisible.length} ofertas visíveis selecionadas</span>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+          <label className="space-y-1 text-xs font-semibold text-slate-600">Categoria para selecionadas
+            <select aria-label="Categoria para selecionadas" value={bulkCategory} onChange={e => setBulkCategory(e.target.value as OfferCategory)} className="field-control min-h-11 w-full bg-white text-sm">
+              {OFFER_CATEGORIES.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+            </select>
+          </label>
+          <button type="button" disabled={!selectedVisible.length} onClick={assignCategory}
+            className="min-h-11 self-end rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white hover:bg-indigo-700 disabled:opacity-50">Aplicar categoria</button>
+        </div>
+        <p className="text-xs leading-5 text-slate-600">A alteração é apenas organizacional e local. Não modifica links nem publica mensagens. Faça backup D1 manual para usá-la em outro aparelho.</p>
+      </div>}
+      {visible.length === 0 && <p className="text-sm text-slate-500 py-5">{offers.length ? "Nenhuma oferta corresponde aos filtros. Limpe os filtros para ver sua biblioteca." : "Nenhuma oferta encontrada. Cadastre a primeira acima."}</p>}
       <div className="space-y-3">
         {visible.map(offer => <article key={offer.id} className="rounded-xl border p-3 space-y-3 sm:p-4">
           <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
+            <div className="flex min-w-0 items-start gap-2">
+              <label className="mt-0.5 flex h-11 w-8 shrink-0 items-start justify-center pt-2" title={"Selecionar " + offer.title}>
+                <input type="checkbox" aria-label={"Selecionar " + offer.title} checked={selectedIds.includes(offer.id)} onChange={() => toggleSelection(offer.id)} className="h-5 w-5 accent-indigo-600"/>
+              </label>
+              <div className="min-w-0">
               <h4 className="font-semibold break-words">{offer.title}</h4>
+              <p className="mt-1 text-xs font-semibold text-indigo-700">Categoria: {OFFER_CATEGORIES.find(item => item.value === (offer.category ?? "outros"))?.label || "Outros"}</p>
               {offer.priceCents !== null && <p className="text-sm font-semibold text-emerald-700">{currency.format(offer.priceCents / 100)}</p>}
               {offer.trackingLabel && <p className="mt-1 text-xs text-indigo-700">Etiqueta: {offer.trackingLabel}</p>}
               {offer.plannedAt && <p className={"text-xs mt-1 " + (scheduledState(offer) === "due" ? "text-amber-700" : "text-slate-500")}>Revisar {new Date(offer.plannedAt).toLocaleString("pt-BR")}{scheduledState(offer) === "due" ? " · pendente" : ""}</p>}
+              </div>
             </div>
             <div className="flex shrink-0 flex-wrap justify-end gap-1">
               <button type="button" title="Editar oferta" aria-label={"Editar " + offer.title} onClick={() => edit(offer)} className="min-h-11 min-w-11 rounded-lg p-2 hover:bg-slate-100"><Edit3 size={16}/></button>

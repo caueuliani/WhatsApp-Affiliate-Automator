@@ -147,3 +147,53 @@ test("mobile: importador e ações de revisão sem rolagem horizontal na tela", 
   }));
   expect(widths.document).toBeLessThanOrEqual(widths.viewport + 1);
 });
+
+
+test("catálogo: categorias, busca com acentos, filtros e ação em lote sem mudar rastreamento", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  const data = [
+    "Mouse Gamer", "https://meli.la/E2Ecatmouse?tag=af%2Bmouse",
+    "Teclado Mecânico", "https://meli.la/E2Ecatkeyboard?tag=af%2Bkeyboard",
+    "Cabo USB", "https://meli.la/E2Ecatcable?tag=af%2Bcable",
+  ].join("\n");
+  await page.getByRole("textbox", { name: "Links ou mensagens de compartilhamento" }).fill(data);
+  await page.getByRole("button", { name: "Analisar links" }).click();
+  await page.getByRole("button", { name: "Selecionar com nome" }).click();
+  page.once("dialog", dialog => dialog.accept());
+  await page.getByRole("button", { name: "Salvar 3 selecionadas" }).click();
+  await expect.poll(async () => (await storedOffers(page)).length).toBe(3);
+
+  const catalog = page.getByRole("region", { name: "Catálogo de ofertas" });
+  await expect(catalog.locator("article")).toHaveCount(3);
+  await catalog.getByRole("checkbox", { name: "Selecionar Mouse Gamer" }).check();
+  await catalog.getByRole("checkbox", { name: "Selecionar Teclado Mecânico" }).check();
+  await catalog.getByRole("combobox", { name: "Categoria para selecionadas" }).selectOption("games");
+  page.once("dialog", dialog => dialog.accept());
+  await catalog.getByRole("button", { name: "Aplicar categoria" }).click();
+  await expect.poll(async () => (await storedOffers(page)).filter(x => x.category === "games").length).toBe(2);
+
+  const changed = await storedOffers(page);
+  expect(changed.find(x => x.id)?.affiliateProgram).toBe("mercado_livre");
+  expect(changed.map(x => x.link).sort()).toEqual([
+    "https://meli.la/E2Ecatmouse?tag=af%2Bmouse",
+    "https://meli.la/E2Ecatkeyboard?tag=af%2Bkeyboard",
+    "https://meli.la/E2Ecatcable?tag=af%2Bcable",
+  ].sort());
+
+  await catalog.getByRole("combobox", { name: "Filtrar por categoria" }).selectOption("games");
+  await expect(catalog.locator("article")).toHaveCount(2);
+  await catalog.getByRole("textbox", { name: "Buscar ofertas" }).fill("TECLADO mecanico");
+  await expect(catalog.locator("article")).toHaveCount(1);
+  await expect(catalog.getByRole("heading", { name: "Teclado Mecânico" })).toBeVisible();
+  await catalog.getByRole("button", { name: "Limpar filtros" }).click();
+  await catalog.getByRole("combobox", { name: "Filtrar por programa" }).selectOption("mercado_livre");
+  await expect(catalog.locator("article")).toHaveCount(3);
+  await catalog.getByRole("button", { name: "Limpar filtros" }).click();
+  await catalog.getByRole("combobox", { name: "Ordenar ofertas" }).selectOption("title");
+  await expect(catalog.locator("article").first().getByRole("heading", { name: "Cabo USB" })).toBeVisible();
+  const widths = await page.evaluate(() => ({
+    viewport: window.innerWidth,
+    document: document.documentElement.scrollWidth,
+  }));
+  expect(widths.document).toBeLessThanOrEqual(widths.viewport + 1);
+});

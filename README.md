@@ -1,4 +1,16 @@
-## PR #21 — Backup automático seguro (NÃO PUBLICADO)
+## PR #22 — Catálogo avançado (mergeado; deploy pendente)
+
+Organização manual das ofertas na aba **Ofertas → Catálogo de ofertas**:
+- Categorias **Tecnologia**, **Games**, **Casa e cozinha**, **Moda**, **Beleza**, **Esportes** e **Outros**; novas ofertas/importações iniciam em "Outros", sem inferir informações do anúncio.
+- Busca por nome, descrição, etiqueta de campanha ou URL, sem diferenciar acentos/maiúsculas.
+- Filtros por **categoria**, **programa de afiliados**, **revisão vencida/futura/sem data** e ordenação por revisão, atualização, nome e preço informado (sem preço fica no final).
+- Marcação de ofertas visíveis e categorização manual em lote com confirmação; **não exclui**, publica ou modifica links/etiquetas de rastreamento. Seleções fora dos filtros não são modificadas.
+- Metadado opcional \`category\` no formato atual de oferta/backup v1; backups antigos sem categoria continuam válidos e são exibidos como "Outros". O D1 já armazena o JSON completo da oferta, então não há migração nova.
+- Testes unitários para filtros e integridade de tracking/backup e cenário Playwright no viewport 375px.
+
+**Deploy pendente:** antes da publicação, salvar um backup dos dados usados pelo Matheus.
+
+## PR #21 — Backup automático seguro (mergeado; deploy pendente)
 
 A implementação existe somente numa branch/PR separado, desativada por padrão. O operador precisa primeiro confirmar explicitamente que biblioteca e agenda locais correspondem à última revisão do Cloudflare D1. Se forem diferentes, precisa usar os botões manuais existentes para enviar ou restaurar dados antes de ativar.
 
@@ -6,7 +18,7 @@ Após habilitação, a cada 30 segundos ou retomada de foco: (1) lê a bibliotec
 
 **Limite consciente:** backup automático local → D1 e detecção de atualização remota, **não** sincronização bidirecional total. Não altera banco D1, migrações, Worker, secrets ou WhatsApp. Testes automatizados cobrem conflitos, preservação de links, opt-in e falhas.
 
-**Publicação explicitamente suspensa.** Não mesclar em main, não disparar Render/Cloudflare e não testar escrevendo na conta do Matheus até nova autorização. Antes de futura implantação, exportar backup e verificar que Matheus não esteja editando.
+**Deploy ainda não executado.** Antes de ativar o backup automático, confirmar que os dados do navegador e do D1 estão alinhados e preservar backup.
 
 ## Browser E2E no Chromium — PR #20
 

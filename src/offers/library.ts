@@ -4,6 +4,20 @@ export const storageKey = (uid: string) => "affiliate-operator:offers:v1:" + uid
 
 export type AffiliateProgram = "mercado_livre" | "shopee" | "amazon" | "other";
 
+export const OFFER_CATEGORIES = [
+  { value: "tecnologia", label: "Tecnologia" },
+  { value: "games", label: "Games" },
+  { value: "casa", label: "Casa e cozinha" },
+  { value: "moda", label: "Moda" },
+  { value: "beleza", label: "Beleza" },
+  { value: "esportes", label: "Esportes" },
+  { value: "outros", label: "Outros" },
+] as const;
+export type OfferCategory = typeof OFFER_CATEGORIES[number]["value"];
+export const isOfferCategory = (value: unknown): value is OfferCategory =>
+  OFFER_CATEGORIES.some(option => option.value === value);
+
+
 export interface OfferDraft {
   id: string;
   title: string;
@@ -12,6 +26,8 @@ export interface OfferDraft {
   priceCents: number | null;
   /** Metadata only; never changes the original affiliate URL. */
   affiliateProgram?: AffiliateProgram;
+  /** Operator-assigned category; optional for legacy backups. */
+  category?: OfferCategory;
   trackingLabel?: string;
   plannedAt: string | null;
   createdAt: string;
@@ -24,6 +40,8 @@ export interface DraftInput {
   link: string;
   price: string;
   affiliateProgram?: AffiliateProgram;
+  /** Operator-assigned category; optional for legacy backups. */
+  category?: OfferCategory;
   trackingLabel?: string;
   plannedAt: string;
 }
@@ -61,6 +79,8 @@ export function createDraft(input: DraftInput, id: string, now = new Date()): Of
     plannedAt = parsed.toISOString();
   }
 
+  const category = input.category ?? "outros";
+  if (!isOfferCategory(category)) throw new Error("Categoria de oferta inválida.");
   const affiliateProgram = input.affiliateProgram || "other";
   if (!["mercado_livre", "shopee", "amazon", "other"].includes(affiliateProgram)) {
     throw new Error("Programa de afiliados desconhecido.");
@@ -69,7 +89,7 @@ export function createDraft(input: DraftInput, id: string, now = new Date()): Of
   if (trackingLabel.length > 60 || /[\u0000-\u001F]/.test(trackingLabel)) {
     throw new Error("A etiqueta deve ter até 60 caracteres e não pode conter quebras de linha.");
   }
-  return { id, title, message, link, priceCents, affiliateProgram, trackingLabel, plannedAt, createdAt: now.toISOString(), updatedAt: now.toISOString() };
+  return { id, title, message, link, priceCents, affiliateProgram, category, trackingLabel, plannedAt, createdAt: now.toISOString(), updatedAt: now.toISOString() };
 }
 
 export function scheduledState(offer: OfferDraft, now = new Date()): "unscheduled" | "upcoming" | "due" {
@@ -88,6 +108,7 @@ function isOffer(value: unknown): value is OfferDraft {
     && (x.link === "" || (() => { try { return new URL(x.link as string).protocol === "https:"; } catch { return false; } })())
     && (x.priceCents === null || (Number.isInteger(x.priceCents) && (x.priceCents as number) >= 0 && (x.priceCents as number) <= 100000000))
     && (x.affiliateProgram === undefined || ["mercado_livre", "shopee", "amazon", "other"].includes(x.affiliateProgram as string))
+    && (x.category === undefined || isOfferCategory(x.category))
     && (x.trackingLabel === undefined || (typeof x.trackingLabel === "string" && x.trackingLabel.length <= 60 && !/[\u0000-\u001F]/.test(x.trackingLabel)))
     && (x.plannedAt === null || validIso(x.plannedAt))
     && validIso(x.createdAt) && validIso(x.updatedAt);
