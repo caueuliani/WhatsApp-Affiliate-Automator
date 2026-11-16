@@ -75,3 +75,13 @@ test("relatório não inclui link, parâmetros de campanha, título nem código 
   assert.doesNotMatch(report,/PRIVADA DO OPERADOR/);
   assert.doesNotMatch(report,/https:\/\//);
 });
+
+test("auditoria é leitura pura; categorização não altera URL nem classificação do link", () => {
+  const original=offer("stable","https://meli.la/keep-tag?utm_campaign=affiliate%2B01");
+  const categorized={...original,category:"games" as const};
+  const before=JSON.stringify(categorized);
+  const result=auditAffiliateLinks([categorized]);
+  assert.equal(result.compatible,1);
+  assert.equal(categorized.link,original.link);
+  assert.equal(JSON.stringify(categorized),before);
+});
